@@ -1,12 +1,27 @@
-import { assets } from "@/assets/assets";
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { useClerk, UserButton } from "@clerk/nextjs";
-import { useAppContext } from "@/context/AppContext.jsx"; // Ensure this is correctly imported
+import { useAppContext } from "@/context/AppContext";
+import { assets } from "@/assets/assets";
+import ChatLabel from "./ChatLabel";
 
 const Sidebar = ({ expand, setExpand }) => {
   const { openSignIn } = useClerk();
   const { user } = useAppContext();
+ 
+
+  // Chat State
+  const [chats, setChats] = useState(["Chat Name 1", "Chat Name 2", "Chat Name 3"]);
+
+  const handleRenameChat = (index, newName) => {
+    const updatedChats = [...chats];
+    updatedChats[index] = newName;
+    setChats(updatedChats);
+  };
+
+  const handleDeleteChat = (index) => {
+    setChats(chats.filter((_, i) => i !== index));
+  };
 
   return (
     <div
@@ -55,46 +70,49 @@ const Sidebar = ({ expand, setExpand }) => {
           />
           {expand && <p className="text-white text-base font-medium">New chat</p>}
         </button>
+
+        {/* Recent Chats List */}
+        {expand && (
+          <div className="mt-4">
+            <p className="text-gray-400 text-sm mb-2">Recents</p>
+            <div className="space-y-2 overflow-y-auto max-h-72 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
+              {chats.map((chat, index) => (
+                <ChatLabel
+                  key={index}
+                  index={index}
+                  chatName={chat}
+                  onRename={handleRenameChat}
+                  onDelete={handleDeleteChat}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-     {/* Get App Section */}
-<div
-  className={`relative flex items-center cursor-pointer group ${
-    expand
-      ? "gap-1 text-white/80 text-sm p-2.5 border-primary rounded-lg hover:bg-white/10"
-      : "h-10 w-10 mx-auto hover:bg-gray-500/30 rounded-lg"
-  }`}
->
-  <Image
-    className={expand ? "w-5" : "w-6.5 mx-auto"}
-    src={expand ? assets.phone_icon : assets.phone_icon_dull}
-    alt="Scan QR"
-    width={24}
-    height={24}
-  />
+      {/* Get App Section */}
+      <div
+        className={`flex items-center cursor-pointer group relative ${
+          expand
+            ? "gap-1 text-white/80 text-sm p-2.5 border-primary rounded-lg hover:bg-white/10"
+            : "h-10 w-10 mx-auto hover:bg-gray-500/30 rounded-lg"
+        }`}
+      >
+        <Image
+          className={expand ? "w-5" : "w-6.5 mx-auto"}
+          src={expand ? assets.phone_icon : assets.phone_icon_dull}
+          alt="Phone Icon"
+          width={24}
+          height={24}
+        />
 
-  {/* QR Code Tooltip */}
-  <div
-    className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-48 bg-black text-white text-center p-3 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition"
-  >
-    <Image
-      src={assets.qrcode}
-      alt="QR Code"
-      width={160}
-      height={160}
-      className="mx-auto"
-    />
-    <p className="mt-2 text-xs">Scan to get DeeoSeek App</p>
-    <div className="absolute left-1/2 -translate-x-1/2 bottom-[-6px] w-3 h-3 bg-black rotate-45"></div>
-  </div>
-
-  {expand && (
-    <>
-      <span>Get App</span>
-      <Image src={assets.new_icon} alt="New Icon" width={16} height={16} />
-    </>
-  )}
-</div>
+        {expand && (
+          <>
+            <span>Get App</span>
+            <Image src={assets.new_icon} alt="New Icon" width={16} height={16} />
+          </>
+        )}
+      </div>
 
       {/* Profile Section */}
       <div
