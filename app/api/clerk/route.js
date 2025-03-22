@@ -11,13 +11,12 @@ export async function POST(req) { // Correct function declaration
         const headerPayload = headers();
         const svixHeaders = {
             "svix-id": headerPayload.get("svix-id"),
-            "svis-timestamp":(await headerPayload).get("svix-timestamp")
+            "svix-timestamp": headerPayload.get("svix-timestamp"), // Fixed missing comma
             "svix-signature": headerPayload.get("svix-signature"),
         };
 
         // Get the payload and verify it
-        const payload = await req.json();
-        const body = JSON.stringify(payload);
+        const body = await req.text(); // Use raw text for verification
         const { data, type } = wh.verify(body, svixHeaders);
 
         // Prepare the user data to be saved in the database
@@ -37,7 +36,7 @@ export async function POST(req) { // Correct function declaration
                 await User.create(userData);
                 break;
 
-            case "user.updated": // Fixed duplicate case
+            case "user.updated":
                 await User.findByIdAndUpdate(data.id, userData, { new: true });
                 break;
 
