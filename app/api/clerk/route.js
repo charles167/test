@@ -1,47 +1,55 @@
 import { Webhook } from "svix";
 import connectDB from "@/config/db";
 import User from "@/models/User";
-import { headers } from "next/headers"; // Correct import
+import { headers } from "next/headers";
 
-export async function POST(req) { // Correct function declaration
+export async function POST(req) {
     try {
-        const wh = new Webhook(process.env.SIGNING_SECRET);
+        console.log("Webhook received");
 
-        // Get headers from request
+        // Connect to database
+        await connectDB();
+        console.log("Connected to MongoDB");
+
+        const wh = new Webhook(process.env.SIGNING_SECRET);
         const headerPayload = headers();
+
         const svixHeaders = {
             "svix-id": headerPayload.get("svix-id"),
-            "svix-timestamp": headerPayload.get("svix-timestamp"), // Fixed missing comma
+            "svix-timestamp": headerPayload.get("svix-timestamp"),
             "svix-signature": headerPayload.get("svix-signature"),
         };
 
-        // Get the payload and verify it
-        const body = await req.text(); // Use raw text for verification
-        const { data, type } = wh.verify(body, svixHeaders);
+        // Read raw request body
+        const body = await req.text();
+        console.log("Raw request body:", body);
 
-        // Prepare the user data to be saved in the database
+        // Verify webhook signature
+        const { data, type } = wh.verify(body, svixHeaders);
+        console.log("Verified data:", data);
+        console.log("Event type:", type);
+
+        // Prepare user data
         const userData = {
-            _id: data.id,
-            email: data.email_addresses[0].email_address,
-            name: `${data.first_name} ${data.last_name}`, // Correct string interpolation
-            image: data.image_url,
+            email: data.email_addresses[0]?.email_address || "",
+            name: `${data.first_name} ${data.last_name}`.trim(),
+            image: data.image_url || "",
         };
 
-        // Connect to the database
-        await connectDB();
-
-        // Handle different event types
         switch (type) {
             case "user.created":
                 await User.create(userData);
+                console.log("User created:", userData);
                 break;
 
             case "user.updated":
-                await User.findByIdAndUpdate(data.id, userData, { new: true });
+                await User.findOneAndUpdate({ email: userData.email }, userData, { new: true });
+                console.log("User updated:", userData);
                 break;
 
             case "user.deleted":
-                await User.findByIdAndDelete(data.id);
+                await User.findOneAndDelete({ email: userData.email });
+                console.log("User deleted:", userData.email);
                 break;
 
             default:
