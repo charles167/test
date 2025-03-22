@@ -5,11 +5,11 @@ import { headers } from "next/headers";
 
 export async function POST(req) {
     try {
-        console.log("Webhook received");
+        console.log("🔗 Webhook received");
 
         // Connect to database
         await connectDB();
-        console.log("Connected to MongoDB");
+        console.log("✅ Connected to MongoDB");
 
         const wh = new Webhook(process.env.SIGNING_SECRET);
         const headerPayload = headers();
@@ -21,39 +21,50 @@ export async function POST(req) {
         };
 
         // Read raw request body
-        const body = await req.text();
-        console.log("Raw request body:", body);
+        const body = JSON.stringify(await req.json());
+        console.log("📜 Raw request body:", body);
 
         // Verify webhook signature
-        const { data, type } = wh.verify(body, svixHeaders);
-        console.log("Verified data:", data);
-        console.log("Event type:", type);
+        let event;
+        try {
+            event = wh.verify(body, svixHeaders);
+        } catch (error) {
+            console.error("❌ Webhook verification failed:", error);
+            return new Response(JSON.stringify({ error: "Invalid webhook signature" }), {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
+        const { data, type } = event;
+        console.log("✅ Verified data:", data);
+        console.log("🛠️ Event type:", type);
 
         // Prepare user data
         const userData = {
-            email: data.email_addresses[0]?.email_address || "",
-            name: `${data.first_name} ${data.last_name}`.trim(),
+            email: data.email_addresses?.[0]?.email_address || "",
+            name: `${data.first_name || ""} ${data.last_name || ""}`.trim(),
             image: data.image_url || "",
         };
 
         switch (type) {
             case "user.created":
                 await User.create(userData);
-                console.log("User created:", userData);
+                console.log("🆕 User created:", userData);
                 break;
 
             case "user.updated":
                 await User.findOneAndUpdate({ email: userData.email }, userData, { new: true });
-                console.log("User updated:", userData);
+                console.log("🔄 User updated:", userData);
                 break;
 
             case "user.deleted":
                 await User.findOneAndDelete({ email: userData.email });
-                console.log("User deleted:", userData.email);
+                console.log("🗑️ User deleted:", userData.email);
                 break;
 
             default:
-                console.log("Unhandled event type:", type);
+                console.log("⚠️ Unhandled event type:", type);
                 break;
         }
 
@@ -62,7 +73,7 @@ export async function POST(req) {
             headers: { "Content-Type": "application/json" },
         });
     } catch (error) {
-        console.error("Error processing webhook:", error);
+        console.error("🚨 Error processing webhook:", error);
         return new Response(JSON.stringify({ error: "Webhook processing failed" }), {
             status: 500,
             headers: { "Content-Type": "application/json" },

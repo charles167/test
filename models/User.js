@@ -2,10 +2,9 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema(
   {
-    _id: { type: mongoose.Schema.Types.ObjectId, auto: true }, // Auto-generate ID
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    image: { type: String, required: true },
+    image: { type: String, default: "" }, // Default to empty string instead of required
   },
   { timestamps: true }
 );
