@@ -5,7 +5,7 @@ import User from "@/models/User";
 
 export async function POST(req) {
   try {
-    console.log("📌 Webhook received");
+    console.log("🔗 Webhook received");
 
     // Connect to MongoDB
     await connectDB();
@@ -22,19 +22,18 @@ export async function POST(req) {
     };
     console.log("📌 Svix Headers:", svixHeaders);
 
-    // Read raw request body
-    const bodyText = await req.text();
-    console.log("📌 Raw request body:", bodyText);
+    // Read JSON request body
+    const rawBody = await req.json(); // 🔥 Fix: Use req.json() instead of req.text()
+    console.log("📌 Raw request body:", rawBody);
 
     // Verify webhook signature
     let event;
     try {
-      event = wh.verify(bodyText, svixHeaders);
+      event = wh.verify(JSON.stringify(rawBody), svixHeaders);
     } catch (verifyError) {
       console.error("❌ Webhook signature verification failed:", verifyError);
       return new Response(JSON.stringify({ error: "Invalid webhook signature" }), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
       });
     }
 
@@ -53,11 +52,10 @@ export async function POST(req) {
       console.error("❌ Missing email in event data");
       return new Response(JSON.stringify({ error: "Invalid event data, missing email" }), {
         status: 400,
-        headers: { "Content-Type": "application/json" },
       });
     }
 
-    // Process event
+    // Process user events
     switch (event.type) {
       case "user.created":
         await User.create(userData);
@@ -76,15 +74,11 @@ export async function POST(req) {
         break;
     }
 
-    return new Response(JSON.stringify({ message: "Event processed successfully" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ message: "Event processed successfully" }), { status: 200 });
   } catch (error) {
-    console.error("❌ Error processing webhook:", error);
+    console.error("🚨 Error processing webhook:", error);
     return new Response(JSON.stringify({ error: "Webhook processing failed", details: error.message }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
     });
   }
 }
