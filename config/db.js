@@ -1,27 +1,27 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-// Use global caching to prevent multiple connections in development
-let cached = global.mongoose || { conn: null, promise: null };
+dotenv.config();
 
-export default async function connectDB() {
-    if (cached.conn) return cached.conn; // Return cached connection if exists
-
-    if (!cached.promise) {
-        cached.promise = mongoose.connect(process.env.MONGODB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        }).then((mongoose) => mongoose);
+const connectDB = async () => {
+  try {
+    if (!process.env.MONGODB_URI) {
+      throw new Error("MONGODB_URI is not defined in .env file");
     }
+    console.log("Connecting to MongoDB:", process.env.MONGODB_URI);
+    
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      // Options are optional in Mongoose v6+
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    
+    console.log("✅ MongoDB connected successfully");
+    return conn;
+  } catch (error) {
+    console.error("❌ Error connecting to MongoDB:", error);
+    throw error; // Optionally rethrow to let the calling API handle it
+  }
+};
 
-    try {
-        cached.conn = await cached.promise;
-        console.log("✅ MongoDB Connected Successfully");
-    } catch (error) {
-        console.error("❌ Error connecting to MongoDB:", error);
-        process.exit(1); // Exit process if connection fails
-    }
-
-    global.mongoose = cached; // Store the connection globally
-
-    return cached.conn;
-}
+export default connectDB;
