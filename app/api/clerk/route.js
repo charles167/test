@@ -11,8 +11,10 @@ export async function POST(req) {
     await connectDB();
     console.log("✅ Connected to MongoDB");
 
-    // Initialize Svix webhook verifier
-    const wh = new Webhook(process.env.SIGNING_SECRET);
+    // Initialize Svix webhook verifier with increased tolerance
+    const wh = new Webhook(process.env.SIGNING_SECRET, {
+      tolerance: 300, // ✅ Allows 5 minutes timestamp skew
+    });
 
     // Get headers from request
     const svixHeaders = {
@@ -22,19 +24,17 @@ export async function POST(req) {
     };
     console.log("📌 Svix Headers:", svixHeaders);
 
-    // Read JSON request body
-    const rawBody = await req.json(); // 🔥 Fix: Use req.json() instead of req.text()
+    // Read raw request body
+    const rawBody = await req.text(); // Clerk sends raw text, not JSON
     console.log("📌 Raw request body:", rawBody);
 
-    // Verify webhook signature
+    // Verify webhook signature with raw body
     let event;
     try {
-      event = wh.verify(JSON.stringify(rawBody), svixHeaders);
+      event = wh.verify(rawBody, svixHeaders);
     } catch (verifyError) {
       console.error("❌ Webhook signature verification failed:", verifyError);
-      return new Response(JSON.stringify({ error: "Invalid webhook signature" }), {
-        status: 400,
-      });
+      return new Response(JSON.stringify({ error: "Invalid webhook signature" }), { status: 400 });
     }
 
     console.log("✅ Verified event:", event);
@@ -50,9 +50,7 @@ export async function POST(req) {
     // Ensure required fields exist
     if (!userData.email || userData.email === "No email") {
       console.error("❌ Missing email in event data");
-      return new Response(JSON.stringify({ error: "Invalid event data, missing email" }), {
-        status: 400,
-      });
+      return new Response(JSON.stringify({ error: "Invalid event data, missing email" }), { status: 400 });
     }
 
     // Process user events
@@ -77,8 +75,6 @@ export async function POST(req) {
     return new Response(JSON.stringify({ message: "Event processed successfully" }), { status: 200 });
   } catch (error) {
     console.error("🚨 Error processing webhook:", error);
-    return new Response(JSON.stringify({ error: "Webhook processing failed", details: error.message }), {
-      status: 500,
-    });
+    return new Response(JSON.stringify({ error: "Webhook processing failed", details: error.message }), { status: 500 });
   }
 }
