@@ -1,4 +1,3 @@
-// app/api/clerk/route.js
 import { Webhook } from "svix";
 import connectDB from "@/config/db";
 import User from "@/models/User";
@@ -11,9 +10,9 @@ export async function POST(req) {
     await connectDB();
     console.log("✅ Connected to MongoDB");
 
-    // Initialize Svix webhook verifier with increased tolerance
+    // ✅ Set webhook tolerance to 5 minutes (300 seconds)
     const wh = new Webhook(process.env.SIGNING_SECRET, {
-      tolerance: 300, // ✅ Allows 5 minutes timestamp skew
+      tolerance: 300, // ⏳ Allows 5-minute timestamp skew
     });
 
     // Get headers from request
@@ -25,10 +24,10 @@ export async function POST(req) {
     console.log("📌 Svix Headers:", svixHeaders);
 
     // Read raw request body
-    const rawBody = await req.text(); // Clerk sends raw text, not JSON
+    const rawBody = await req.text();
     console.log("📌 Raw request body:", rawBody);
 
-    // Verify webhook signature with raw body
+    // ✅ Verify webhook signature
     let event;
     try {
       event = wh.verify(rawBody, svixHeaders);
