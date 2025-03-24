@@ -10,10 +10,8 @@ export async function POST(req) {
     await connectDB();
     console.log("✅ Connected to MongoDB");
 
-    // ✅ Set webhook tolerance to 5 minutes (300 seconds)
-    const wh = new Webhook(process.env.SIGNING_SECRET, {
-      tolerance: 300, // ⏳ Allows 5-minute timestamp skew
-    });
+    // Get current server timestamp (in seconds)
+    const serverTimestamp = Math.floor(Date.now() / 1000);
 
     // Get headers from request
     const svixHeaders = {
@@ -21,13 +19,20 @@ export async function POST(req) {
       "svix-timestamp": req.headers.get("svix-timestamp"),
       "svix-signature": req.headers.get("svix-signature"),
     };
+
     console.log("📌 Svix Headers:", svixHeaders);
+    console.log("🕒 Server Timestamp:", serverTimestamp);
+    console.log("🕒 Svix Timestamp:", svixHeaders["svix-timestamp"]);
 
     // Read raw request body
     const rawBody = await req.text();
     console.log("📌 Raw request body:", rawBody);
 
     // ✅ Verify webhook signature
+    const wh = new Webhook(process.env.SIGNING_SECRET, {
+      tolerance: 300, // 5-minute tolerance
+    });
+
     let event;
     try {
       event = wh.verify(rawBody, svixHeaders);
@@ -37,39 +42,6 @@ export async function POST(req) {
     }
 
     console.log("✅ Verified event:", event);
-
-    // Extract user data
-    const userData = {
-      email: event?.data?.email_addresses?.[0]?.email_address || "No email",
-      name: `${event?.data?.first_name || ""} ${event?.data?.last_name || ""}`.trim(),
-      image: event?.data?.image_url || "",
-    };
-    console.log("📌 Extracted user data:", userData);
-
-    // Ensure required fields exist
-    if (!userData.email || userData.email === "No email") {
-      console.error("❌ Missing email in event data");
-      return new Response(JSON.stringify({ error: "Invalid event data, missing email" }), { status: 400 });
-    }
-
-    // Process user events
-    switch (event.type) {
-      case "user.created":
-        await User.create(userData);
-        console.log("✅ User created:", userData);
-        break;
-      case "user.updated":
-        await User.findOneAndUpdate({ email: userData.email }, userData, { new: true });
-        console.log("✅ User updated:", userData);
-        break;
-      case "user.deleted":
-        await User.findOneAndDelete({ email: userData.email });
-        console.log("✅ User deleted:", userData.email);
-        break;
-      default:
-        console.log("⚠️ Unhandled event type:", event.type);
-        break;
-    }
 
     return new Response(JSON.stringify({ message: "Event processed successfully" }), { status: 200 });
   } catch (error) {
