@@ -19,6 +19,22 @@ export async function POST(req) {
       "svix-signature": req.headers.get("svix-signature"),
     };
 
+    // Log the timestamp and current time for debugging
+    const timestamp = req.headers.get("svix-timestamp");
+    console.log("Received timestamp:", timestamp);
+    const currentTime = Math.floor(Date.now() / 1000); // Get current time in seconds
+    console.log("Current time:", currentTime);
+
+    // Check if timestamp is within acceptable range (e.g., 5 minutes)
+    const timeDiff = currentTime - parseInt(timestamp);
+    if (timeDiff > 300) { // 300 seconds = 5 minutes
+      console.error("Webhook timestamp too old. Difference:", timeDiff);
+      return new Response(JSON.stringify({ error: "Webhook timestamp too old" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     // Read raw request body
     const bodyText = await req.text();
     console.log("Raw request body:", bodyText);
@@ -37,7 +53,7 @@ export async function POST(req) {
 
     console.log("Verified event:", event);
 
-    // Extract user data from event (adjust keys according to your payload)
+    // Extract user data from event
     const userData = {
       email: event.data.email_addresses ? event.data.email_addresses[0]?.email_address : "",
       name: `${event.data.first_name || ""} ${event.data.last_name || ""}`.trim(),
@@ -75,3 +91,5 @@ export async function POST(req) {
     );
   }
 }
+
+
