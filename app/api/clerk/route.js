@@ -1,95 +1,131 @@
-// app/api/clerk/route.js
 import { Webhook } from "svix";
 import connectDB from "@/config/db";
 import User from "@/models/User";
 
 export async function POST(req) {
   try {
-    console.log("Webhook received");
+    console.log("🔔 Webhook received");
 
     // Connect to MongoDB
     await connectDB();
-    console.log("Connected to MongoDB");
+    console.log("✅ Connected to MongoDB");
+
+    // Ensure signing secret is available
+    if (!process.env.SIGNING_SECRET) {
+      console.error("❌ SIGNING_SECRET is missing");
+      return new Response(JSON.stringify({ error: "Server misconfiguration" }), { status: 500 });
+    }
 
     // Initialize Svix webhook verifier
     const wh = new Webhook(process.env.SIGNING_SECRET);
-    const svixHeaders = {
-      "svix-id": req.headers.get("svix-id"),
-      "svix-timestamp": req.headers.get("svix-timestamp"),
-      "svix-signature": req.headers.get("svix-signature"),
-    };
 
-    // Log the timestamp and current time for debugging
-    const timestamp = req.headers.get("svix-timestamp");
-    console.log("Received timestamp:", timestamp);
-    const currentTime = Math.floor(Date.now() / 1000); // Get current time in seconds
-    console.log("Current time:", currentTime);
+    // Extract headers
+    const svixId = req.headers.get("svix-id");
+    const svixTimestamp = req.headers.get("svix-timestamp");
+    const svixSignature = req.headers.get("svix-signature");
 
-    // Check if timestamp is within acceptable range (e.g., 5 minutes)
-    const timeDiff = currentTime - parseInt(timestamp);
-    if (timeDiff > 300) { // 300 seconds = 5 minutes
-      console.error("Webhook timestamp too old. Difference:", timeDiff);
-      return new Response(JSON.stringify({ error: "Webhook timestamp too old" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      console.error("❌ Missing required headers");
+      return new Response(JSON.stringify({ error: "Missing required headers" }), { status: 400 });
     }
 
-    // Read raw request body
-    const bodyText = await req.text();
-    console.log("Raw request body:", bodyText);
+    // Convert timestamp and check validity
+    const timestamp = parseInt(svixTimestamp, 10);
+    
+    // Check if the timestamp is in milliseconds (timestamps longer than 10 digits are in milliseconds)
+    const isMilliseconds = svixTimestamp.length > 10;
+    const timestampInSeconds = isMilliseconds ? timestamp / 1000 : timestamp;
+
+    const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
+    const timeDiff = Math.abs(currentTime - timestampInSeconds);
+
+    console.log(`⏳ Received timestamp: ${timestampInSeconds}, Current time: ${currentTime}, Difference: ${timeDiff}s`);
+
+    // Adjust the allowed time difference (e.g., 10 minutes or 600 seconds)
+    const allowedTimeDiff = 600; // 10 minutes
+    if (timeDiff > allowedTimeDiff) {
+      console.error("⏰ Webhook timestamp too old");
+      return new Response(JSON.stringify({ error: "Webhook timestamp too old" }), { status: 400 });
+    }
+
+    // Read raw request body properly
+    const bodyBuffer = await req.arrayBuffer();
+    const bodyText = new TextDecoder().decode(bodyBuffer);
 
     // Verify webhook signature
     let event;
     try {
-      event = wh.verify(bodyText, svixHeaders);
-    } catch (verifyError) {
-      console.error("Webhook signature verification failed:", verifyError);
-      return new Response(JSON.stringify({ error: "Invalid webhook signature" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
+      event = wh.verify(bodyText, {
+        "svix-id": svixId,
+        "svix-timestamp": svixTimestamp,
+        "svix-signature": svixSignature,
       });
+    } catch (verifyError) {
+      console.error("❌ Webhook signature verification failed:", verifyError);
+      return new Response(JSON.stringify({ error: "Invalid webhook signature" }), { status: 400 });
     }
 
-    console.log("Verified event:", event);
+    console.log("✅ Webhook signature verified");
 
-    // Extract user data from event
+    // Extract user data
+    const email = event?.data?.email_addresses?.[0]?.email_address || null;
+    if (!email) {
+      console.error("❌ Missing email address in event data");
+      return new Response(JSON.stringify({ error: "Missing email in event" }), { status: 400 });
+    }
+
     const userData = {
-      email: event.data.email_addresses ? event.data.email_addresses[0]?.email_address : "",
+      email,
       name: `${event.data.first_name || ""} ${event.data.last_name || ""}`.trim(),
       image: event.data.image_url || "",
     };
 
-    // Process event based on type
+    // Process event
     switch (event.type) {
       case "user.created":
-        await User.create(userData);
-        console.log("User created:", userData);
+        try {
+          const userExists = await User.findOne({ email: userData.email });
+          if (userExists) {
+            console.log(`⚠️ User already exists with email: ${userData.email}`);
+            return new Response(JSON.stringify({ message: "User already exists" }), { status: 400 });
+          }
+          await User.create(userData);
+          console.log("🎉 User created:", userData);
+        } catch (dbError) {
+          console.error("❌ Error saving user to database:", dbError);
+          return new Response(JSON.stringify({ error: "Error saving user to database", details: dbError.message }), { status: 500 });
+        }
         break;
+
       case "user.updated":
-        await User.findOneAndUpdate({ email: userData.email }, userData, { new: true });
-        console.log("User updated:", userData);
+        try {
+          await User.findOneAndUpdate({ email: userData.email }, userData, { new: true });
+          console.log("🔄 User updated:", userData);
+        } catch (dbError) {
+          console.error("❌ Error updating user:", dbError);
+          return new Response(JSON.stringify({ error: "Error updating user", details: dbError.message }), { status: 500 });
+        }
         break;
+
       case "user.deleted":
-        await User.findOneAndDelete({ email: userData.email });
-        console.log("User deleted:", userData.email);
+        try {
+          await User.findOneAndDelete({ email: userData.email });
+          console.log("🗑️ User deleted:", userData.email);
+        } catch (dbError) {
+          console.error("❌ Error deleting user:", dbError);
+          return new Response(JSON.stringify({ error: "Error deleting user", details: dbError.message }), { status: 500 });
+        }
         break;
+
       default:
-        console.log("Unhandled event type:", event.type);
+        console.log("⚠️ Unhandled event type:", event.type);
         break;
     }
 
-    return new Response(
-      JSON.stringify({ message: "Event processed successfully" }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ message: "Event processed successfully" }), { status: 200 });
+
   } catch (error) {
-    console.error("Error processing webhook:", error);
-    return new Response(
-      JSON.stringify({ error: "Webhook processing failed", details: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    console.error("❌ Error processing webhook:", error);
+    return new Response(JSON.stringify({ error: "Webhook processing failed", details: error.message }), { status: 500 });
   }
 }
-
-
