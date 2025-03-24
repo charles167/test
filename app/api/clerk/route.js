@@ -23,22 +23,22 @@ export async function POST(req) {
         const rawBody = await req.text();
         console.log("📜 Raw request body:", rawBody);
 
-        // ✅ Skip signature verification for testing (remove in production)
+        // ✅ Verify webhook signature
+        const wh = new Webhook(process.env.SIGNING_SECRET);
         let event;
         try {
-            console.log("🚨 Skipping webhook signature verification (for testing)");
-            event = JSON.parse(rawBody);
+            event = wh.verify(rawBody, svixHeaders);
         } catch (error) {
-            console.error("❌ Failed to parse JSON:", error);
-            return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+            console.error("❌ Webhook verification failed:", error);
+            return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
         }
 
         console.log("✅ Verified event:", event);
         const { data, type } = event;
 
-        // Prepare user data
+        // ✅ Extract user data correctly
         const userData = {
-            email: data?.email || "",
+            email: data?.email_addresses?.[0]?.email_address || "",
             name: `${data?.first_name || ""} ${data?.last_name || ""}`.trim(),
             image: data?.image_url || "",
         };
@@ -50,7 +50,6 @@ export async function POST(req) {
 
         switch (type) {
             case "user.created":
-                console.log("🛠️ Checking if user already exists...");
                 const existingUser = await User.findOne({ email: userData.email });
 
                 if (existingUser) {
