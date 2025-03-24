@@ -36,13 +36,14 @@ export async function POST(req) {
         console.log("✅ Verified event:", event);
         const { data, type } = event;
 
-        // Prepare user data
+        // ✅ Extract email from multiple possible paths
         const userData = {
-            email: data?.email || "",
+            email: data?.email || data?.email_addresses?.[0]?.email_address || "",
             name: `${data?.first_name || ""} ${data?.last_name || ""}`.trim(),
             image: data?.image_url || "",
         };
 
+        // ❌ Return error if email is missing
         if (!userData.email) {
             console.error("❌ Missing email in event data");
             return NextResponse.json({ error: "Invalid event data, missing email" }, { status: 400 });
