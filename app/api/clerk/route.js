@@ -2,6 +2,8 @@ import { Webhook } from "svix";
 import connectDB from "@/config/db";
 import User from "@/models/User";
 
+const MAX_TIME_DIFF = 300; // 5 minutes in seconds
+
 export async function POST(req) {
   try {
     console.log("🔔 Webhook received");
@@ -31,19 +33,12 @@ export async function POST(req) {
 
     // Convert timestamp and check validity
     const timestamp = parseInt(svixTimestamp, 10);
-    
-    // Check if the timestamp is in milliseconds (timestamps longer than 10 digits are in milliseconds)
-    const isMilliseconds = svixTimestamp.length > 10;
-    const timestampInSeconds = isMilliseconds ? timestamp / 1000 : timestamp;
+    const currentTime = Math.floor(Date.now() / 1000);
+    const timeDiff = Math.abs(currentTime - timestamp);
 
-    const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
-    const timeDiff = Math.abs(currentTime - timestampInSeconds);
+    console.log(`⏳ Received timestamp: ${timestamp}, Current time: ${currentTime}, Difference: ${timeDiff}s`);
 
-    console.log(`⏳ Received timestamp: ${timestampInSeconds}, Current time: ${currentTime}, Difference: ${timeDiff}s`);
-
-    // Adjust the allowed time difference (e.g., 10 minutes or 600 seconds)
-    const allowedTimeDiff = 600; // 10 minutes
-    if (timeDiff > allowedTimeDiff) {
+    if (timeDiff > MAX_TIME_DIFF) {
       console.error("⏰ Webhook timestamp too old");
       return new Response(JSON.stringify({ error: "Webhook timestamp too old" }), { status: 400 });
     }
@@ -123,7 +118,6 @@ export async function POST(req) {
     }
 
     return new Response(JSON.stringify({ message: "Event processed successfully" }), { status: 200 });
-
   } catch (error) {
     console.error("❌ Error processing webhook:", error);
     return new Response(JSON.stringify({ error: "Webhook processing failed", details: error.message }), { status: 500 });
