@@ -1,6 +1,6 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { auth } from "@clerk/nextjs/dist/types/server";  // ✅ Correct import for Clerk Auth in Next.js App Router
+import { auth } from "@clerk/nextjs";  // ✅ Correct import for Clerk Auth in Next.js App Router
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
