@@ -1,12 +1,12 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { auth } from "@clerk/nextjs"; // ✅ Correct import for Clerk Auth in Next.js App Router
+import { getAuth } from "@clerk/nextjs/server"; // ✅ Use getAuth for App Router
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
   try {
     // Get authenticated user ID
-    const { userId } = auth();
+    const { userId } = getAuth(req); // ✅ Fix: Use getAuth(req) instead of auth()
 
     if (!userId) {
       return NextResponse.json(
@@ -18,17 +18,16 @@ export async function GET(req) {
     // Connect to the database
     await connectDB();
 
-    // Fetch user's chats (excluding unnecessary fields)
-    const chats = await Chat.find({ userId }, "-__v").lean();
+    // Fetch user's chats
+    const chats = await Chat.find({ userId }).select("-__v").lean();
 
     return NextResponse.json({
       success: true,
-      data: chats.length ? chats : [], // Always return an array
+      chats, // Return the chats array directly
     });
 
   } catch (error) {
     console.error("🚨 Error fetching chats:", error);
-
     return NextResponse.json(
       { success: false, message: "Failed to fetch chats", error: error.message },
       { status: 500 }
