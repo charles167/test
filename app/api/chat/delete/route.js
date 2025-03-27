@@ -1,28 +1,49 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
 import { getAuth } from "@clerk/nextjs/server";
-
-
 import { NextResponse } from "next/server";
 
-export async function post(req) {
+export async function DELETE(req) {
     try {
+        // Get user authentication
         const { userId } = getAuth(req);
         const { chatId } = await req.json();
 
+        // Check authentication
         if (!userId) {
-            return NextResponse.json({
-                success: false,
-                message: "User not authenticated",
-            });
+            return NextResponse.json(
+                { success: false, message: "User not authenticated" },
+                { status: 401 }
+            );
+        }
+
+        // Validate chatId
+        if (!chatId) {
+            return NextResponse.json(
+                { success: false, message: "chatId is required" },
+                { status: 400 }
+            );
         }
 
         // Connect to the database and delete the chat
         await connectDB();
-        await Chat.deleteOne({ _id: chatId, userId });
+        const deletedChat = await Chat.deleteOne({ _id: chatId, userId });
 
-        return NextResponse.json({ success: true, message: "Chat deleted" });
+        if (deletedChat.deletedCount === 0) {
+            return NextResponse.json(
+                { success: false, message: "Chat not found" },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json(
+            { success: true, message: "Chat deleted successfully" },
+            { status: 200 }
+        );
     } catch (error) {
-        return NextResponse.json({ success: false, error: error.message });
+        return NextResponse.json(
+            { success: false, message: error.message },
+            { status: 500 }
+        );
     }
 }
