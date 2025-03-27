@@ -6,8 +6,7 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   try {
     // Get user authentication
-    const auth = await getAuth(req);
-    const userId = auth?.userId;
+    const { userId } = getAuth(req);
 
     // Check if the user is authenticated
     if (!userId) {
@@ -17,11 +16,14 @@ export async function POST(req) {
       );
     }
 
+    // Parse request body
+    const { name = "New Chat" } = await req.json(); // Allow dynamic chat name
+
     // Prepare the chat object
     const chatData = {
       userId,
       messages: [],
-      name: "New Chat",
+      name,
     };
 
     // Connect to the database and create the chat
@@ -30,13 +32,14 @@ export async function POST(req) {
 
     // Return success response with the created chat data
     return NextResponse.json(
-      { success: true, message: "Chat created", chat: newChat },
+      { success: true, message: "Chat created successfully", chat: newChat },
       { status: 201 }
     );
   } catch (error) {
-    // Return error response
+    console.error("Error creating chat:", error); // Debugging log
+
     return NextResponse.json(
-      { success: false, message: error.message || "An error occurred" },
+      { success: false, message: error.message || "An error occurred while creating the chat" },
       { status: 500 }
     );
   }

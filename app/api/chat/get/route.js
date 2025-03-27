@@ -1,27 +1,37 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { auth } from "@clerk/nextjs";  // ✅ Correct import for Clerk Auth in Next.js App Router
+import { auth } from "@clerk/nextjs"; // ✅ Correct import for Clerk Auth in Next.js App Router
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
-    try {
-        const { userId } = auth(); // ✅ Correct function to get user ID
+  try {
+    // Get authenticated user ID
+    const { userId } = auth();
 
-        if (!userId) {
-            return NextResponse.json({
-                success: false,
-                message: "User not authenticated",
-            }, { status: 401 });
-        }
-
-        // Connect to MongoDB and fetch user's chats
-        await connectDB();
-        const data = await Chat.find({ userId });
-
-        return NextResponse.json({ success: true, data });
-
-    } catch (error) {
-        console.error("🚨 Error fetching chats:", error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: "User not authenticated" },
+        { status: 401 }
+      );
     }
+
+    // Connect to the database
+    await connectDB();
+
+    // Fetch user's chats (excluding unnecessary fields)
+    const chats = await Chat.find({ userId }, "-__v").lean();
+
+    return NextResponse.json({
+      success: true,
+      data: chats.length ? chats : [], // Always return an array
+    });
+
+  } catch (error) {
+    console.error("🚨 Error fetching chats:", error);
+
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch chats", error: error.message },
+      { status: 500 }
+    );
+  }
 }

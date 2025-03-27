@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { assets } from "@/assets/assets";
 
@@ -6,6 +6,19 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(chatName);
+  const menuRef = useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleRename = () => {
     setIsEditing(true);
@@ -13,10 +26,15 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
   };
 
   const handleSave = () => {
-    if (newName.trim() !== "") {
+    if (newName.trim() !== "" && newName !== chatName) {
       onRename(index, newName);
     }
     setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") handleSave();
+    if (e.key === "Escape") setIsEditing(false);
   };
 
   return (
@@ -28,7 +46,7 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onBlur={handleSave}
-          onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          onKeyDown={handleKeyDown}
           className="bg-transparent text-white border border-gray-500 px-2 py-1 rounded-md w-full"
           autoFocus
         />
@@ -40,17 +58,28 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
       <button
         onClick={() => setMenuOpen(!menuOpen)}
         className="opacity-0 group-hover:opacity-100 transition"
+        tabIndex={0} // Enables keyboard focus
       >
         <Image src={assets.menu_icon} alt="Menu" width={16} height={16} />
       </button>
 
       {/* Dropdown Menu */}
       {menuOpen && (
-        <div className="absolute right-0 top-8 bg-gray-800 text-white text-sm rounded-md shadow-md p-2">
-          <button onClick={handleRename} className="block w-full hover:bg-gray-600 p-1 rounded">
+        <div
+          ref={menuRef}
+          className="absolute right-0 top-8 bg-gray-800 text-white text-sm rounded-md shadow-md p-2 z-10"
+          style={{ minWidth: "120px" }} // Ensures a proper dropdown size
+        >
+          <button
+            onClick={handleRename}
+            className="block w-full hover:bg-gray-600 p-1 rounded"
+          >
             ✏ Rename
           </button>
-          <button onClick={() => onDelete(index)} className="block w-full text-red-500 hover:bg-gray-600 p-1 rounded">
+          <button
+            onClick={() => onDelete(index)}
+            className="block w-full text-red-500 hover:bg-gray-600 p-1 rounded"
+          >
             🗑 Delete
           </button>
         </div>

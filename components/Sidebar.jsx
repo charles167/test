@@ -8,7 +8,6 @@ import ChatLabel from "./ChatLabel";
 const Sidebar = ({ expand, setExpand }) => {
   const { openSignIn } = useClerk();
   const { user } = useAppContext();
- 
 
   // Chat State
   const [chats, setChats] = useState(["Chat Name 1", "Chat Name 2", "Chat Name 3"]);
@@ -23,11 +22,15 @@ const Sidebar = ({ expand, setExpand }) => {
     setChats(chats.filter((_, i) => i !== index));
   };
 
+  const handleNewChat = () => {
+    setChats([...chats, `Chat ${chats.length + 1}`]);
+  };
+
   return (
     <div
       className={`flex flex-col justify-between bg-[#212327] pt-7 transition-all z-50 max-md:absolute max-h-screen ${
         expand ? "p-4 w-64" : "md:w-20 w-0 max-md:overflow-hidden"
-      }`}
+      } overflow-hidden`}
     >
       {/* Top Section */}
       <div>
@@ -57,6 +60,7 @@ const Sidebar = ({ expand, setExpand }) => {
 
         {/* New Chat Button */}
         <button
+          onClick={handleNewChat}
           className={`mt-8 flex items-center justify-center cursor-pointer ${
             expand ? "bg-primary hover:opacity-90 rounded-2xl gap-2 p-2.5 w-max" : ""
           }`}
@@ -75,7 +79,7 @@ const Sidebar = ({ expand, setExpand }) => {
         {expand && (
           <div className="mt-4">
             <p className="text-gray-400 text-sm mb-2">Recents</p>
-            <div className="space-y-2 overflow-y-auto max-h-72 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
+            <div className="space-y-2 overflow-y-auto max-h-72 pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-none">
               {chats.map((chat, index) => (
                 <ChatLabel
                   key={index}
