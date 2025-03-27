@@ -1,6 +1,6 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { getAuth } from "@clerk/nextjs/server"; // ✅ Fixed Import
+import { getAuth } from "@clerk/nextjs/dist/types/server"; // ✅ Fixed Import
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";  // Import GoogleGenAI
 

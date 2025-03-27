@@ -1,6 +1,6 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat"; // ✅ Import the Chat model
-import { getAuth } from "@clerk/nextjs/server"; // ✅ Correct import for Clerk Auth
+import { getAuth } from "@clerk/nextjs/dist/types/server"; // ✅ Correct import for Clerk Auth
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
