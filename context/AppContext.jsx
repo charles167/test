@@ -27,7 +27,7 @@ export const AppContextProvider = ({ children }) => {
             if (!user) return;
 
             setLoading(true);
-            const token = await getToken({ template: "your-template-name" });
+            const token = await getToken({ template: "charles" });
 
             const { data } = await axios.post("/api/chat/create", {}, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -52,7 +52,7 @@ export const AppContextProvider = ({ children }) => {
             if (!user) return;
 
             setLoading(true);
-            const token = await getToken({ template: "your-template-name" });
+            const token = await getToken({ template: "charles" });
             console.log("🔑 Token:", token);
 
             const { data } = await axios.get("/api/chat/get", {
