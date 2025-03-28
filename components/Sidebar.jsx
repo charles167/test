@@ -7,23 +7,18 @@ import ChatLabel from "./ChatLabel";
 
 const Sidebar = ({ expand, setExpand }) => {
   const { openSignIn } = useClerk();
-  const { user } = useAppContext();
+  const { user, chats, setChats, createNewChat } = useAppContext();
 
-  // Chat State
-  const [chats, setChats] = useState(["Chat Name 1", "Chat Name 2", "Chat Name 3"]);
-
+  // Handle chat renaming
   const handleRenameChat = (index, newName) => {
     const updatedChats = [...chats];
-    updatedChats[index] = newName;
+    updatedChats[index].title = newName; // Assuming chat object has a `title` field
     setChats(updatedChats);
   };
 
+  // Handle chat deletion
   const handleDeleteChat = (index) => {
     setChats(chats.filter((_, i) => i !== index));
-  };
-
-  const handleNewChat = () => {
-    setChats([...chats, `Chat ${chats.length + 1}`]);
   };
 
   return (
@@ -60,7 +55,7 @@ const Sidebar = ({ expand, setExpand }) => {
 
         {/* New Chat Button */}
         <button
-          onClick={handleNewChat}
+          onClick={createNewChat} // Calls global function to create a chat
           className={`mt-8 flex items-center justify-center cursor-pointer ${
             expand ? "bg-primary hover:opacity-90 rounded-2xl gap-2 p-2.5 w-max" : ""
           }`}
@@ -82,9 +77,9 @@ const Sidebar = ({ expand, setExpand }) => {
             <div className="space-y-2 overflow-y-auto max-h-72 pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-none">
               {chats.map((chat, index) => (
                 <ChatLabel
-                  key={index}
+                  key={chat._id || index} // Ensure unique key
                   index={index}
-                  chatName={chat}
+                  chatName={chat.title || `Chat ${index + 1}`} // Ensure fallback name
                   onRename={handleRenameChat}
                   onDelete={handleDeleteChat}
                 />

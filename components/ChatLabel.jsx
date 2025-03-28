@@ -49,6 +49,7 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
           onKeyDown={handleKeyDown}
           className="bg-transparent text-white border border-gray-500 px-2 py-1 rounded-md w-full"
           autoFocus
+          role="textbox"
         />
       ) : (
         <span className="text-white">{chatName}</span>
@@ -58,6 +59,8 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
       <button
         onClick={() => setMenuOpen(!menuOpen)}
         className="opacity-0 group-hover:opacity-100 transition"
+        aria-label="Open menu"
+        aria-expanded={menuOpen ? "true" : "false"}
         tabIndex={0} // Enables keyboard focus
       >
         <Image src={assets.menu_icon} alt="Menu" width={16} height={16} />
@@ -73,12 +76,14 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
           <button
             onClick={handleRename}
             className="block w-full hover:bg-gray-600 p-1 rounded"
+            aria-label="Rename chat"
           >
             ✏ Rename
           </button>
           <button
             onClick={() => onDelete(index)}
             className="block w-full text-red-500 hover:bg-gray-600 p-1 rounded"
+            aria-label="Delete chat"
           >
             🗑 Delete
           </button>

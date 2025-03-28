@@ -7,9 +7,7 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
     <div className="flex flex-col items-center w-full max-w-3xl text-sm">
       <div className={`flex flex-col w-full mb-8 ${role === "user" ? "items-end" : ""}`}>
         <div
-          className={`group relative flex max-w-2xl py-3 rounded-xl transition ${
-            role === "user" ? "bg-[#414158] px-5" : "gap-3"
-          }`}
+          className={`group relative flex max-w-2xl py-3 rounded-xl transition ${role === "user" ? "bg-[#414158] px-5" : "gap-3"}`}
         >
           {/* Hover Icons */}
           <div
@@ -22,7 +20,7 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
               alt="Copy"
               width={16}
               height={16}
-              className="cursor-pointer"
+              className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
               onClick={onCopy}
             />
             {role === "user" ? (
@@ -31,7 +29,7 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
                 alt="Edit"
                 width={16}
                 height={16}
-                className="cursor-pointer"
+                className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
                 onClick={onEdit}
               />
             ) : (
@@ -41,7 +39,7 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
                   alt="Regenerate"
                   width={16}
                   height={16}
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
                   onClick={onRegenerate}
                 />
                 <Image
@@ -49,7 +47,7 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
                   alt="Like"
                   width={16}
                   height={16}
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
                   onClick={onLike}
                 />
                 <Image
@@ -57,7 +55,7 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
                   alt="Dislike"
                   width={16}
                   height={16}
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
                   onClick={onDislike}
                 />
               </>
