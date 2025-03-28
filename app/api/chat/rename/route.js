@@ -18,14 +18,15 @@ export async function POST(req) {
     // Parse request body
     const { chatId, name } = await req.json();
 
-    // Validate input
+    // Validate input fields
     if (!chatId || !name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
-        { success: false, message: "Invalid chatId or name" },
+        { success: false, message: "ChatId and name are required, and name must be a non-empty string" },
         { status: 400 }
       );
     }
 
+    // Validate ObjectId format
     if (!mongoose.Types.ObjectId.isValid(chatId)) {
       return NextResponse.json(
         { success: false, message: "Invalid chatId format" },
@@ -39,7 +40,7 @@ export async function POST(req) {
     // Find and update the chat
     const updatedChat = await Chat.findOneAndUpdate(
       { _id: chatId, userId }, // Ensure the chat belongs to the authenticated user
-      { name: name.trim() }, // Update the name field (trim to remove extra spaces)
+      { name: name.trim() }, // Trim to remove leading/trailing spaces
       { new: true, runValidators: true } // Return updated chat & enforce validation
     ).lean();
 
@@ -56,10 +57,11 @@ export async function POST(req) {
     );
 
   } catch (error) {
-    console.error("🚨 Error renaming chat:", error);
+    console.error("🚨 Error renaming chat:", error); // Log the full error for debugging
 
+    // Return a sanitized error message for client-side consumption
     return NextResponse.json(
-      { success: false, message: "Failed to rename chat", error: error.message },
+      { success: false, message: "Failed to rename chat. Please try again later." },
       { status: 500 }
     );
   }

@@ -8,9 +8,7 @@ export async function GET(req) {
   try {
     // Get authentication data from Clerk
     const authData = getAuth(req);
-    console.log("🔍 Auth Data:", authData);
-
-    const { userId } = authData || {};
+    const { userId } = authData || {}; // Deconstruct userId from authData
 
     // Check if user is authenticated
     if (!userId) {
@@ -20,7 +18,7 @@ export async function GET(req) {
       );
     }
 
-    // Validate the userId format
+    // If userId is a string but needs to be validated as ObjectId
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return NextResponse.json(
         { success: false, message: "Invalid user ID format" },
@@ -29,27 +27,29 @@ export async function GET(req) {
     }
 
     // Connect to MongoDB
-    console.log("🔍 Connecting to MongoDB...");
     await connectDB();
-    console.log("🔍 Connected to MongoDB");
 
-    // Fetch user's chats from MongoDB
-    try {
-      const chats = await Chat.find({ userId }).select("-__v").lean();
-      console.log("🔍 Found chats:", chats);
-      return NextResponse.json({
-        success: true,
-        chats,
-      });
-    } catch (dbError) {
-      console.error("🚨 Error fetching chats from MongoDB:", dbError);
+    // Fetch user's chats from MongoDB, excluding the __v field
+    const chats = await Chat.find({ userId }).select("-__v").lean();
+
+    // Check if chats are found
+    if (!chats || chats.length === 0) {
       return NextResponse.json(
-        { success: false, message: "Failed to fetch chats", error: dbError.message },
-        { status: 500 }
+        { success: true, message: "No chats available", chats: [] },
+        { status: 200 }
       );
     }
+
+    // Return success response with chats data
+    return NextResponse.json({
+      success: true,
+      chats,
+    });
+
   } catch (error) {
-    console.error("🚨 Error fetching auth data or connecting to DB:", error);
+    console.error("🚨 Error fetching auth data or connecting to DB:", error.message);
+
+    // Return a more specific error message for internal errors
     return NextResponse.json(
       { success: false, message: "Internal server error", error: error.message },
       { status: 500 }

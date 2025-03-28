@@ -2,12 +2,11 @@ import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
 import { getAuth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import axios from "axios";
 
-// Initialize Google GenAI client
-const genAI = new GoogleGenAI({
-  apiKey: process.env.GENAI_API_KEY, // Ensure this is in your .env file
-});
+// Google Gemini API URL and API Key from environment variables
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Ensure this is in your .env file
 
 export async function POST(req) {
   try {
@@ -24,9 +23,10 @@ export async function POST(req) {
     // Extract chatId and prompt from request body
     const { chatId, prompt } = await req.json();
 
-    if (!chatId || !prompt) {
+    // Validate chatId and prompt
+    if (!chatId || !prompt || prompt.trim().length < 5) {
       return NextResponse.json(
-        { success: false, message: "chatId and prompt are required" },
+        { success: false, message: "chatId and prompt (with a minimum of 5 characters) are required" },
         { status: 400 }
       );
     }
@@ -35,7 +35,7 @@ export async function POST(req) {
     await connectDB();
 
     // Find the chat in the database
-    const chatData = await Chat.findOne({ userId, _id: chatId });
+    const chatData = await Chat.findOne({ userId, _id: chatId }).select("messages");
 
     if (!chatData) {
       return NextResponse.json(
@@ -52,24 +52,63 @@ export async function POST(req) {
     };
     chatData.messages.push(userPrompt);
 
-    // Generate AI response using Google Gemini API
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Prepare request body for Google Gemini API
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+          ],
+        },
+      ],
+    };
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
+    // Send request to Google Gemini API
+    let result;
+    try {
+      result = await axios.post(
+        GEMINI_API_URL,
+        requestBody,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          params: {
+            key: GEMINI_API_KEY, // API key as a query parameter
+          },
+        }
+      );
+    } catch (aiError) {
+      console.error("Error generating AI response:", aiError);
+      return NextResponse.json(
+        { success: false, message: "Failed to generate AI response" },
+        { status: 500 }
+      );
+    }
 
-    // 🔥 Correct way to get the AI-generated text
-    const assistantText = response?.candidates?.[0]?.content?.parts?.[0]?.text || "No response from AI";
+    const response = result?.data?.contents?.[0]?.parts?.[0]?.text;
 
+    if (!response) {
+      console.error("No valid AI response received.");
+      return NextResponse.json(
+        { success: false, message: "No valid AI response received" },
+        { status: 500 }
+      );
+    }
+
+    // AI response successfully received
     const assistantMessage = {
       role: "assistant",
-      content: assistantText,
+      content: response,
       timestamp: Date.now(),
     };
 
     // Add AI response to chat history and save
     chatData.messages.push(assistantMessage);
     await chatData.save();
+
+    console.log("User prompt added:", userPrompt);
+    console.log("Assistant message:", assistantMessage);
 
     return NextResponse.json({
       success: true,
@@ -79,6 +118,7 @@ export async function POST(req) {
   } catch (error) {
     console.error("Error during processing:", error);
 
+    // Return a more detailed error message
     return NextResponse.json(
       { success: false, message: error.message || "An unexpected error occurred" },
       { status: 500 }

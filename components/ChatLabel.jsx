@@ -37,6 +37,14 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
     if (e.key === "Escape") setIsEditing(false);
   };
 
+  const handleMenuToggle = () => setMenuOpen((prev) => !prev);
+
+  const handleMenuKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      handleMenuToggle();
+    }
+  };
+
   return (
     <div className="relative group flex items-center justify-between p-2 rounded-lg hover:bg-gray-700 transition">
       {/* Chat Name or Input Field */}
@@ -57,7 +65,8 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
 
       {/* Three-Dot Menu Button */}
       <button
-        onClick={() => setMenuOpen(!menuOpen)}
+        onClick={handleMenuToggle}
+        onKeyDown={handleMenuKeyDown}
         className="opacity-0 group-hover:opacity-100 transition"
         aria-label="Open menu"
         aria-expanded={menuOpen ? "true" : "false"}

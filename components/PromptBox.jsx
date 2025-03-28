@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 
 const PromptBox = ({ setIsLoading, isLoading }) => {
   const [prompt, setPrompt] = useState("");
+  const [error, setError] = useState(null); // Error state
   const { user, chats, setChats, selectedChat, setSelectedChat } = useAppContext();
 
   const handleKeyDown = (e) => {
@@ -14,6 +15,19 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
       e.preventDefault();
       sendPrompt(e);
     }
+  };
+
+  // Helper function to update chat messages
+  const updateChatMessages = (chatId, newMessage) => {
+    setChats((prevChats) =>
+      prevChats.map((chat) =>
+        chat._id === chatId ? { ...chat, messages: [...chat.messages, newMessage] } : chat
+      )
+    );
+    setSelectedChat((prev) => ({
+      ...prev,
+      messages: [...prev.messages, newMessage],
+    }));
   };
 
   const sendPrompt = async (e) => {
@@ -26,6 +40,7 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
 
       setIsLoading(true);
       setPrompt("");
+      setError(null); // Reset error before making request
 
       const userPrompt = {
         role: "user",
@@ -33,18 +48,14 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
         timestamp: Date.now(),
       };
 
-      // Update local state (user message)
-      setChats((prevChats) =>
-        prevChats.map((chat) =>
-          chat._id === selectedChat._id
-            ? { ...chat, messages: [...chat.messages, userPrompt] }
-            : chat
-        )
-      );
-      setSelectedChat((prev) => ({
-        ...prev,
-        messages: [...prev.messages, userPrompt],
-      }));
+      // Ensure selectedChat is defined before attempting to access messages
+      if (!selectedChat || !selectedChat._id) {
+        setError("Please select a chat.");
+        setIsLoading(false);
+        return;
+      }
+
+      updateChatMessages(selectedChat._id, userPrompt);
 
       // Call API
       const { data } = await axios.post("/api/chat/ai", {
@@ -52,25 +63,17 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
         prompt,
       });
 
+      console.log("API response:", data);
+
       if (data.success) {
         const assistantMessage = {
           role: "assistant",
-          content: "",
+          content: "Assistant is typing...", // Placeholder text
           timestamp: Date.now(),
         };
 
-        // Append assistant message placeholder
-        setChats((prevChats) =>
-          prevChats.map((chat) =>
-            chat._id === selectedChat._id
-              ? { ...chat, messages: [...chat.messages, assistantMessage] }
-              : chat
-          )
-        );
-        setSelectedChat((prev) => ({
-          ...prev,
-          messages: [...prev.messages, assistantMessage],
-        }));
+        // Update chat with placeholder message
+        updateChatMessages(selectedChat._id, assistantMessage);
 
         // Simulate typing effect
         const message = data.data.content;
@@ -91,10 +94,11 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
           }
         }, 50);
       } else {
-        toast.error(data.message);
+        setError(data.message || "An error occurred while processing your request.");
         setPrompt(promptCopy);
       }
     } catch (error) {
+      setError(error.message || "An error occurred while sending your message.");
       toast.error(error.message);
       setPrompt(promptCopy);
     } finally {
@@ -113,7 +117,10 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
         onChange={(e) => setPrompt(e.target.value)}
         value={prompt}
         disabled={isLoading} // Disable input while loading
+        aria-placeholder="Message DeepSeek"
       />
+
+      {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
 
       <div className="flex items-center justify-between text-sm mt-2">
         {/* Left Buttons */}
@@ -135,6 +142,7 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
 
           {/* Submit Button */}
           <button
+            aria-label="Send message"
             className={`${
               prompt && !isLoading ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-500"
             } rounded-full p-2 cursor-pointer transition`}

@@ -2,7 +2,7 @@ import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
 import { getAuth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
-import mongoose from "mongoose"; // Import to validate ObjectId
+import mongoose from "mongoose"; // Import mongoose to validate ObjectId
 
 export async function DELETE(req) {
   try {
@@ -35,24 +35,34 @@ export async function DELETE(req) {
     }
 
     // Connect to the database
-    await connectDB();
+    try {
+      await connectDB();
+    } catch (dbError) {
+      console.error("Database connection failed:", dbError);
+      return NextResponse.json(
+        { success: false, message: "Database connection error" },
+        { status: 500 }
+      );
+    }
 
     // Delete the chat document
     const deletedChat = await Chat.deleteOne({ _id: chatId, userId });
 
-    if (deletedChat.deletedCount === 0) {
+    // Ensure the chat was deleted
+    if (!deletedChat || deletedChat.deletedCount === 0) {
       return NextResponse.json(
         { success: false, message: "Chat not found or unauthorized" },
         { status: 404 }
       );
     }
 
+    // Return success message
     return NextResponse.json(
-      { success: true, message: "Chat deleted successfully" },
+      { success: true, message: "Chat deleted successfully", chatId },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error deleting chat:", error);
+    console.error("Error deleting chat:", error.stack); // Log full error for debugging
 
     return NextResponse.json(
       { success: false, message: error.message || "An error occurred while deleting the chat" },
