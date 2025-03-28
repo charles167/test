@@ -21,12 +21,13 @@ export const AppContextProvider = ({ children }) => {
     const [selectedChat, setSelectedChat] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    // Create a new chat if none exists
     const createNewChat = async () => {
         try {
-            if (!user) return null;
+            if (!user) return;
 
-            setLoading(true); // Prevent multiple requests
-            const token = await getToken();
+            setLoading(true);
+            const token = await getToken({ template: "your-template-name" });
 
             const { data } = await axios.post("/api/chat/create", {}, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -38,63 +39,58 @@ export const AppContextProvider = ({ children }) => {
                 toast.error(data.message);
             }
         } catch (error) {
-            console.error("Error creating chat:", error);
+            console.error("🚨 Error creating chat:", error);
             toast.error("Failed to create chat.");
         } finally {
             setLoading(false);
         }
     };
 
+    // Fetch all chats for the authenticated user
     const fetchUserChats = async () => {
         try {
             if (!user) return;
 
             setLoading(true);
-            const token = await getToken();
+            const token = await getToken({ template: "your-template-name" });
+            console.log("🔑 Token:", token);
+
             const { data } = await axios.get("/api/chat/get", {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             if (data.success) {
-                console.log("User Chats:", data.chats);
+                console.log("✅ User Chats:", data.chats);
                 setChats(data.chats);
 
-                // If no chats exist, create a new one automatically
                 if (data.chats.length === 0) {
                     await createNewChat();
                 } else {
-                    // Sort chats by updated date (latest first)
                     data.chats.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
                     setSelectedChat(data.chats[0]);
-                    console.log("Selected Chat:", data.chats[0]);
+                    console.log("🔵 Selected Chat:", data.chats[0]);
                 }
             } else {
                 toast.error(data.message);
             }
         } catch (error) {
-            console.error("Error fetching chats:", error);
+            console.error("🚨 Error fetching chats:", error);
             toast.error("Failed to load chats.");
         } finally {
             setLoading(false);
         }
     };
 
+    // Fetch chats on mount when the user is logged in
     useEffect(() => {
         if (user) {
             fetchUserChats();
         }
     }, [user]);
 
-    const value = {
-        user,
-        chats,
-        setChats,
-        selectedChat,
-        setSelectedChat,
-        fetchUserChats,
-        createNewChat,
-        loading
-    };
-
-    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+    return (
+        <AppContext.Provider value={{ user, chats, setChats, selectedChat, setSelectedChat, fetchUserChats, createNewChat, loading }}>
+            {children}
+        </AppContext.Provider>
+    );
 };

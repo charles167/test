@@ -1,13 +1,15 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { getAuth } from "@clerk/nextjs/server"; // ✅ Use getAuth for App Router
+import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
   try {
-    // Get authenticated user ID
-    const { userId } = getAuth(req); // ✅ Fix: Use getAuth(req) instead of auth()
+    // Get authentication data from Clerk
+    const authData = getAuth(req);
+    console.log("🔍 Auth Data:", authData);
 
+    const { userId } = authData || {};
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
@@ -15,7 +17,7 @@ export async function GET(req) {
       );
     }
 
-    // Connect to the database
+    // Connect to MongoDB
     await connectDB();
 
     // Fetch user's chats
@@ -23,7 +25,7 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
-      chats, // Return the chats array directly
+      chats,
     });
 
   } catch (error) {
