@@ -10,6 +10,7 @@ export async function GET(req) {
     console.log("🔍 Auth Data:", authData);
 
     const { userId } = authData || {};
+
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
