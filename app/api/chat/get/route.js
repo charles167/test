@@ -29,6 +29,14 @@ export async function GET(req) {
     // Connect to MongoDB
     await connectDB();
 
+    // Check MongoDB connection status
+    if (mongoose.connection.readyState !== 1) {
+      return NextResponse.json(
+        { success: false, message: "Database connection failed" },
+        { status: 500 }
+      );
+    }
+
     // Fetch user's chats from MongoDB, excluding the __v field
     const chats = await Chat.find({ userId }).select("-__v").lean();
 
