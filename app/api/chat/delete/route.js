@@ -1,14 +1,13 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { getAuth } from "@clerk/nextjs";
+import { getAuth } from "@clerk/nextjs/server"; // Correct Clerk import for Next.js API routes
 import { NextResponse } from "next/server";
 import mongoose from "mongoose"; // Import mongoose to validate ObjectId
 
 export async function DELETE(req) {
   try {
-    // Get user authentication
+    // Authenticate user
     const { userId } = getAuth(req);
-
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
@@ -35,21 +34,12 @@ export async function DELETE(req) {
     }
 
     // Connect to the database
-    try {
-      await connectDB();
-    } catch (dbError) {
-      console.error("Database connection failed:", dbError);
-      return NextResponse.json(
-        { success: false, message: "Database connection error" },
-        { status: 500 }
-      );
-    }
+    await connectDB();
 
-    // Delete the chat document
-    const deletedChat = await Chat.deleteOne({ _id: chatId, userId });
+    // Find and delete the chat document
+    const deletedChat = await Chat.findOneAndDelete({ _id: chatId, userId });
 
-    // Ensure the chat was deleted
-    if (!deletedChat || deletedChat.deletedCount === 0) {
+    if (!deletedChat) {
       return NextResponse.json(
         { success: false, message: "Chat not found or unauthorized" },
         { status: 404 }

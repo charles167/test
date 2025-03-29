@@ -2,9 +2,8 @@ import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
 import { getAuth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
-import mongoose from "mongoose"; // Import mongoose to validate ObjectId
 
-export async function POST(req) {
+export async function PATCH(req) {
   try {
     // Authenticate the user
     const { userId } = getAuth(req);
@@ -21,15 +20,7 @@ export async function POST(req) {
     // Validate input fields
     if (!chatId || !name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
-        { success: false, message: "ChatId and name are required, and name must be a non-empty string" },
-        { status: 400 }
-      );
-    }
-
-    // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(chatId)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid chatId format" },
+        { success: false, message: "chatId and a valid name are required" },
         { status: 400 }
       );
     }
@@ -40,10 +31,11 @@ export async function POST(req) {
     // Find and update the chat
     const updatedChat = await Chat.findOneAndUpdate(
       { _id: chatId, userId }, // Ensure the chat belongs to the authenticated user
-      { name: name.trim() }, // Trim to remove leading/trailing spaces
+      { name: name.trim() }, // Trim input to prevent unnecessary spaces
       { new: true, runValidators: true } // Return updated chat & enforce validation
     ).lean();
 
+    // Check if the chat was found and updated
     if (!updatedChat) {
       return NextResponse.json(
         { success: false, message: "Chat not found or unauthorized access" },
@@ -57,11 +49,10 @@ export async function POST(req) {
     );
 
   } catch (error) {
-    console.error("🚨 Error renaming chat:", error); // Log the full error for debugging
+    console.error("🚨 Error renaming chat:", error);
 
-    // Return a sanitized error message for client-side consumption
     return NextResponse.json(
-      { success: false, message: "Failed to rename chat. Please try again later." },
+      { success: false, message: "An error occurred while renaming the chat" },
       { status: 500 }
     );
   }

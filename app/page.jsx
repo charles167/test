@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { assets } from "@/assets/assets";
 import Message from "@/components/Message";
@@ -48,6 +48,14 @@ export default function Home() {
       setIsLoading(false);
     }
   };
+
+  // Scroll to the bottom of the message list when new messages are added
+  useEffect(() => {
+    const chatContainer = document.querySelector('.space-y-4');
+    if (chatContainer) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }, [messages]);
 
   return (
     <div className="flex h-screen">

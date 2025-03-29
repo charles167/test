@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { assets } from "@/assets/assets";
 
@@ -6,19 +6,7 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(chatName);
-  const menuRef = useRef(null);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   const handleRename = () => {
     setIsEditing(true);
@@ -37,12 +25,18 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
     if (e.key === "Escape") setIsEditing(false);
   };
 
-  const handleMenuToggle = () => setMenuOpen((prev) => !prev);
+  const handleDelete = () => {
+    setShowDeleteConfirmation(true);
+    setMenuOpen(false); // Close menu on delete
+  };
 
-  const handleMenuKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      handleMenuToggle();
-    }
+  const confirmDelete = () => {
+    onDelete(index); // Perform the delete action
+    setShowDeleteConfirmation(false);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirmation(false);
   };
 
   return (
@@ -57,7 +51,6 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
           onKeyDown={handleKeyDown}
           className="bg-transparent text-white border border-gray-500 px-2 py-1 rounded-md w-full"
           autoFocus
-          role="textbox"
         />
       ) : (
         <span className="text-white">{chatName}</span>
@@ -65,37 +58,46 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
 
       {/* Three-Dot Menu Button */}
       <button
-        onClick={handleMenuToggle}
-        onKeyDown={handleMenuKeyDown}
+        onClick={() => setMenuOpen((prev) => !prev)}
         className="opacity-0 group-hover:opacity-100 transition"
         aria-label="Open menu"
-        aria-expanded={menuOpen ? "true" : "false"}
-        tabIndex={0} // Enables keyboard focus
+        tabIndex={0}
       >
         <Image src={assets.menu_icon} alt="Menu" width={16} height={16} />
       </button>
 
       {/* Dropdown Menu */}
       {menuOpen && (
-        <div
-          ref={menuRef}
-          className="absolute right-0 top-8 bg-gray-800 text-white text-sm rounded-md shadow-md p-2 z-10"
-          style={{ minWidth: "120px" }} // Ensures a proper dropdown size
-        >
+        <div className="absolute right-0 top-8 bg-gray-800 text-white text-sm rounded-md shadow-md p-2 z-10">
           <button
             onClick={handleRename}
             className="block w-full hover:bg-gray-600 p-1 rounded"
-            aria-label="Rename chat"
           >
             ✏ Rename
           </button>
           <button
-            onClick={() => onDelete(index)}
+            onClick={handleDelete}
             className="block w-full text-red-500 hover:bg-gray-600 p-1 rounded"
-            aria-label="Delete chat"
           >
             🗑 Delete
           </button>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmation && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white text-black p-4 rounded-md">
+            <p>Are you sure you want to delete this chat?</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={cancelDelete} className="bg-gray-300 p-2 rounded">
+                Cancel
+              </button>
+              <button onClick={confirmDelete} className="bg-red-500 p-2 text-white rounded">
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,48 +1,23 @@
-import { ClerkExpressWithAuth } from "@clerk/clerk-sdk-node"; // Correct Clerk import
+import { getAuth } from "@clerk/nextjs/server"; // Corrected Clerk import for Next.js
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
 import { NextResponse } from "next/server";
 
-// Initialize Clerk client with your API key (or use middleware)
-const clerk = ClerkExpressWithAuth();
-
 // POST API handler to create a new chat
 export async function POST(req) {
   try {
-    // Get the auth token from the request headers
-    const authToken = req.headers["authorization"]?.split("Bearer ")[1]; // Extract the token correctly
+    // Authenticate user
+    const { userId } = getAuth(req);
 
-    if (!authToken) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
         { status: 401 }
       );
     }
-
-    // Verify the token with Clerk
-    let user;
-    try {
-      user = await clerk.verifyToken(authToken); // Clerk SDK now handles token verification
-    } catch (verificationError) {
-      console.error("Token verification failed:", verificationError);
-      return NextResponse.json(
-        { success: false, message: "User not authenticated" },
-        { status: 401 }
-      );
-    }
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: "User not authenticated" },
-        { status: 401 }
-      );
-    }
-
-    // Now you have the user ID
-    const userId = user.id;
 
     // Parse request body
-    const { name = "New Chat" } = await req.json(); // Allow dynamic chat name
+    const { name = "New Chat" } = await req.json();
 
     // Validate name field
     if (!name.trim()) {
@@ -52,20 +27,16 @@ export async function POST(req) {
       );
     }
 
-    // Connect to the database
-    await connectDB(); // Ensure that connection is successful
+    // Connect to MongoDB
+    await connectDB();
 
-    // Prepare the chat object
-    const chatData = {
+    // Create new chat
+    const newChat = await Chat.create({
       userId,
       messages: [],
       name,
-    };
+    });
 
-    // Create the chat in the database
-    const newChat = await Chat.create(chatData);
-
-    // Return success response with the created chat data
     return NextResponse.json(
       {
         success: true,
@@ -75,8 +46,7 @@ export async function POST(req) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating chat:", error); // Log error message with stack trace
-
+    console.error("Error creating chat:", error);
     return NextResponse.json(
       { success: false, message: error.message || "An error occurred while creating the chat" },
       { status: 500 }

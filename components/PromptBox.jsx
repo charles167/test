@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 
 const PromptBox = ({ setIsLoading, isLoading }) => {
   const [prompt, setPrompt] = useState("");
-  const [error, setError] = useState(null); // Error state
+  const [error, setError] = useState(null);
   const { user, chats, setChats, selectedChat, setSelectedChat } = useAppContext();
 
   const handleKeyDown = (e) => {
@@ -40,7 +40,7 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
 
       setIsLoading(true);
       setPrompt("");
-      setError(null); // Reset error before making request
+      setError(null);
 
       const userPrompt = {
         role: "user",
@@ -48,7 +48,6 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
         timestamp: Date.now(),
       };
 
-      // Ensure selectedChat is defined before attempting to access messages
       if (!selectedChat || !selectedChat._id) {
         setError("Please select a chat.");
         setIsLoading(false);
@@ -57,7 +56,6 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
 
       updateChatMessages(selectedChat._id, userPrompt);
 
-      // Call API
       const { data } = await axios.post("/api/chat/ai", {
         chatId: selectedChat._id,
         prompt,
@@ -68,31 +66,33 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
       if (data.success) {
         const assistantMessage = {
           role: "assistant",
-          content: "Assistant is typing...", // Placeholder text
+          content: "Assistant is typing...",
           timestamp: Date.now(),
         };
 
-        // Update chat with placeholder message
         updateChatMessages(selectedChat._id, assistantMessage);
 
-        // Simulate typing effect
         const message = data.data.content;
-        let i = 0;
-        const typingInterval = setInterval(() => {
-          if (i < message.length) {
-            setSelectedChat((prev) => {
-              const updatedMessages = [...prev.messages];
-              updatedMessages[updatedMessages.length - 1] = {
-                ...assistantMessage,
-                content: message.slice(0, i + 1),
-              };
-              return { ...prev, messages: updatedMessages };
-            });
-            i++;
-          } else {
-            clearInterval(typingInterval);
-          }
-        }, 50);
+        if (!message || message.trim().length === 0) {
+          setError("No results found.");
+        } else {
+          let i = 0;
+          const typingInterval = setInterval(() => {
+            if (i < message.length) {
+              setSelectedChat((prev) => {
+                const updatedMessages = [...prev.messages];
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...assistantMessage,
+                  content: message.slice(0, i + 1),
+                };
+                return { ...prev, messages: updatedMessages };
+              });
+              i++;
+            } else {
+              clearInterval(typingInterval);
+            }
+          }, 50);
+        }
       } else {
         setError(data.message || "An error occurred while processing your request.");
         setPrompt(promptCopy);
@@ -106,6 +106,8 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
     }
   };
 
+  const sendButtonClass = prompt && !isLoading ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-500";
+
   return (
     <form onSubmit={sendPrompt} className="w-full max-w-2xl bg-[#404045] p-4 rounded-3xl mt-4 transition-all">
       <textarea
@@ -116,8 +118,7 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
         required
         onChange={(e) => setPrompt(e.target.value)}
         value={prompt}
-        disabled={isLoading} // Disable input while loading
-        aria-placeholder="Message DeepSeek"
+        disabled={isLoading}
       />
 
       {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
@@ -137,15 +138,11 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
 
         {/* Right Section - Pin & Submit Button */}
         <div className="flex items-center gap-1">
-          {/* Pin Icon */}
           <Image className="h-4 w-4 cursor-pointer" src={assets.pin_icon} alt="Pin Icon" width={16} height={16} />
 
-          {/* Submit Button */}
           <button
             aria-label="Send message"
-            className={`${
-              prompt && !isLoading ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-500"
-            } rounded-full p-2 cursor-pointer transition`}
+            className={`${sendButtonClass} rounded-full p-2 cursor-pointer transition`}
             disabled={!prompt || isLoading}
           >
             {isLoading ? (

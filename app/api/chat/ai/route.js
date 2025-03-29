@@ -1,17 +1,17 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { getAuth } from "@clerk/nextjs";
+import { getAuth } from "@clerk/nextjs/server"; // Corrected import
 import { NextResponse } from "next/server";
 import axios from "axios";
+import mongoose from "mongoose";
 
-// Google Gemini API URL and API Key from environment variables
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Ensure this is in your .env file
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Ensure this is set in .env
 
 export async function POST(req) {
   try {
-    // Get the authenticated user
-    const { userId } = getAuth(req);
+    // Authenticate user
+    const { userId } = getAuth(req); // Adjust for authentication
 
     if (!userId) {
       return NextResponse.json(
@@ -23,20 +23,26 @@ export async function POST(req) {
     // Extract chatId and prompt from request body
     const { chatId, prompt } = await req.json();
 
-    // Validate chatId and prompt
     if (!chatId || !prompt || prompt.trim().length < 5) {
       return NextResponse.json(
-        { success: false, message: "chatId and prompt (with a minimum of 5 characters) are required" },
+        { success: false, message: "chatId and prompt (min 5 characters) required" },
         { status: 400 }
       );
     }
 
-    // Connect to the database
+    // Validate chatId format
+    if (!mongoose.Types.ObjectId.isValid(chatId)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid chat ID" },
+        { status: 400 }
+      );
+    }
+
+    // Connect to MongoDB
     await connectDB();
 
-    // Find the chat in the database
-    const chatData = await Chat.findOne({ userId, _id: chatId }).select("messages");
-
+    // Find chat in database
+    const chatData = await Chat.findOne({ userId, _id: chatId }).select("messages").lean();
     if (!chatData) {
       return NextResponse.json(
         { success: false, message: "Chat not found" },
@@ -44,83 +50,60 @@ export async function POST(req) {
       );
     }
 
-    // Add user message to chat history
-    const userPrompt = {
-      role: "user",
-      content: prompt,
-      timestamp: Date.now(),
-    };
+    // Add user prompt to chat messages
+    const userPrompt = { role: "user", content: prompt, timestamp: Date.now() };
     chatData.messages.push(userPrompt);
 
-    // Prepare request body for Google Gemini API
+    // Send request to Google Gemini API
+    if (!GEMINI_API_KEY) {
+      return NextResponse.json(
+        { success: false, message: "Server error: Missing API key" },
+        { status: 500 }
+      );
+    }
+
     const requestBody = {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-          ],
-        },
-      ],
+      contents: [{ parts: [{ text: prompt }] }],
     };
 
-    // Send request to Google Gemini API
     let result;
     try {
-      result = await axios.post(
-        GEMINI_API_URL,
-        requestBody,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          params: {
-            key: GEMINI_API_KEY, // API key as a query parameter
-          },
-        }
-      );
+      result = await axios.post(GEMINI_API_URL, requestBody, {
+        headers: { "Content-Type": "application/json" },
+        params: { key: GEMINI_API_KEY },
+      });
     } catch (aiError) {
-      console.error("Error generating AI response:", aiError);
+      console.error("AI API Error:", aiError?.response?.data || aiError.message);
       return NextResponse.json(
-        { success: false, message: "Failed to generate AI response" },
-        { status: 500 }
+        { success: false, message: aiError?.response?.data?.error?.message || "AI response failed" },
+        { status: aiError?.response?.status || 500 }
       );
     }
 
-    const response = result?.data?.contents?.[0]?.parts?.[0]?.text;
+    // Extract AI response safely
+    const response =
+      result?.data?.candidates?.[0]?.content?.parts?.[0]?.text || "AI response unavailable";
 
     if (!response) {
-      console.error("No valid AI response received.");
       return NextResponse.json(
-        { success: false, message: "No valid AI response received" },
+        { success: false, message: "No valid AI response" },
         { status: 500 }
       );
     }
 
-    // AI response successfully received
-    const assistantMessage = {
-      role: "assistant",
-      content: response,
-      timestamp: Date.now(),
-    };
-
-    // Add AI response to chat history and save
+    // Save AI response to chat
+    const assistantMessage = { role: "assistant", content: response, timestamp: Date.now() };
     chatData.messages.push(assistantMessage);
-    await chatData.save();
+    await Chat.updateOne({ _id: chatId }, { messages: chatData.messages });
 
-    console.log("User prompt added:", userPrompt);
-    console.log("Assistant message:", assistantMessage);
+    console.log("User Prompt:", userPrompt);
+    console.log("AI Response:", assistantMessage);
 
-    return NextResponse.json({
-      success: true,
-      data: assistantMessage,
-    });
-
+    return NextResponse.json({ success: true, data: assistantMessage });
   } catch (error) {
-    console.error("Error during processing:", error);
-
-    // Return a more detailed error message
+    console.error("Server Error:", error);
     return NextResponse.json(
-      { success: false, message: error.message || "An unexpected error occurred" },
+      { success: false, message: error.message || "Unexpected error" },
       { status: 500 }
     );
   }

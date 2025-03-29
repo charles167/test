@@ -17,46 +17,51 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
           >
             <Image
               src={assets.copy_icon}
-              alt="Copy"
+              alt="Copy message"
               width={16}
               height={16}
               className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
               onClick={onCopy}
+              aria-label="Copy message"
             />
             {role === "user" ? (
               <Image
                 src={assets.pencil_icon}
-                alt="Edit"
+                alt="Edit message"
                 width={16}
                 height={16}
                 className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
                 onClick={onEdit}
+                aria-label="Edit message"
               />
             ) : (
               <>
                 <Image
                   src={assets.regenerate_icon}
-                  alt="Regenerate"
+                  alt="Regenerate message"
                   width={16}
                   height={16}
                   className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
                   onClick={onRegenerate}
+                  aria-label="Regenerate message"
                 />
                 <Image
                   src={assets.like_icon}
-                  alt="Like"
+                  alt="Like message"
                   width={16}
                   height={16}
                   className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
                   onClick={onLike}
+                  aria-label="Like message"
                 />
                 <Image
                   src={assets.dislike_icon}
-                  alt="Dislike"
+                  alt="Dislike message"
                   width={16}
                   height={16}
                   className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
                   onClick={onDislike}
+                  aria-label="Dislike message"
                 />
               </>
             )}
