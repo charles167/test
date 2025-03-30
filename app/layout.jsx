@@ -20,12 +20,7 @@ export default function RootLayout({ children }) {
       <html lang="en">
         <body className={`${inter.className} antialiased`}>
           <AppContextProvider>
-            <Toaster
-              toastOptions={{
-                success: { style: { background: "black", color: "white" } },
-                error: { style: { background: "black", color: "white" } },
-              }}
-            />
+            <Toaster toastOptions={{ success: { className: "toast-success" }, error: { className: "toast-error" } }} />
             {children}
           </AppContextProvider>
         </body>
