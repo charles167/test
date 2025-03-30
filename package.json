@@ -12,6 +12,7 @@
     "@clerk/clerk-sdk-node": "^5.1.6",
     "@clerk/nextjs": "^6.12.12",
     "@google/genai": "^0.6.1",
+    "@next/font": "^14.2.15",
     "axios": "^1.8.4",
     "dotenv": "^16.4.7",
     "mongoose": "^8.12.2",
@@ -26,6 +27,7 @@
     "react-markdown": "^10.1.0",
     "react-toastify": "^11.0.5",
     "sanitize-html": "^2.15.0",
+    "sharp": "^0.33.5",
     "svix": "^1.62.0"
   },
   "devDependencies": {
