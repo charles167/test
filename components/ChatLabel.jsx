@@ -59,7 +59,7 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
       {/* Three-Dot Menu Button */}
       <button
         onClick={() => setMenuOpen((prev) => !prev)}
-        className="opacity-0 group-hover:opacity-100 transition"
+        className="opacity-0 group-hover:opacity-100 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         aria-label="Open menu"
         tabIndex={0}
       >
@@ -68,16 +68,16 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
 
       {/* Dropdown Menu */}
       {menuOpen && (
-        <div className="absolute right-0 top-8 bg-gray-800 text-white text-sm rounded-md shadow-md p-2 z-10">
+        <div className="absolute right-0 top-8 bg-gray-800 text-white text-sm rounded-md shadow-md p-2 z-10 transition-opacity">
           <button
             onClick={handleRename}
-            className="block w-full hover:bg-gray-600 p-1 rounded"
+            className="block w-full hover:bg-gray-600 p-1 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             ✏ Rename
           </button>
           <button
             onClick={handleDelete}
-            className="block w-full text-red-500 hover:bg-gray-600 p-1 rounded"
+            className="block w-full text-red-500 hover:bg-gray-600 p-1 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             🗑 Delete
           </button>
@@ -86,14 +86,14 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirmation && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
-          <div className="bg-white text-black p-4 rounded-md">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-20">
+          <div className="bg-white text-black p-4 rounded-md shadow-lg">
             <p>Are you sure you want to delete this chat?</p>
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={cancelDelete} className="bg-gray-300 p-2 rounded">
+              <button onClick={cancelDelete} className="bg-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 Cancel
               </button>
-              <button onClick={confirmDelete} className="bg-red-500 p-2 text-white rounded">
+              <button onClick={confirmDelete} className="bg-red-500 p-2 text-white rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 Delete
               </button>
             </div>

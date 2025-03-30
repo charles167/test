@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { assets } from "@/assets/assets";
 import Message from "@/components/Message";
@@ -13,6 +13,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResult, setSearchResult] = useState("");
+  const chatContainerRef = useRef(null);
 
   // Handle search input change
   const handleSearch = (e) => setSearchTerm(e.target.value);
@@ -44,6 +45,11 @@ export default function Home() {
     } catch (error) {
       console.error("Error fetching data:", error);
       setSearchResult("Error fetching data.");
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: searchTerm },
+        { role: "assistant", content: "Sorry, something went wrong." },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -51,9 +57,8 @@ export default function Home() {
 
   // Scroll to the bottom of the message list when new messages are added
   useEffect(() => {
-    const chatContainer = document.querySelector('.space-y-4');
-    if (chatContainer) {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -71,15 +76,27 @@ export default function Home() {
 
         {/* Chat Search */}
         <div className="w-full max-w-2xl mt-4">
-          <input type="text" className="w-full px-4 py-2 bg-[#333] text-white rounded-lg" placeholder="Search..." value={searchTerm} onChange={handleSearch} />
-          <button onClick={handleSearchSubmit} className="mt-2 px-4 py-2 bg-[#4CAF50] text-white rounded-lg" disabled={isLoading}>
+          <input
+            type="text"
+            className="w-full px-4 py-2 bg-[#333] text-white rounded-lg"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={handleSearch}
+          />
+          <button
+            onClick={handleSearchSubmit}
+            className="mt-2 px-4 py-2 bg-[#4CAF50] text-white rounded-lg"
+            disabled={isLoading}
+          >
             {isLoading ? "Searching..." : "Search"}
           </button>
         </div>
 
         {/* Message Area */}
-        <div className="w-full max-w-2xl space-y-4 overflow-y-auto mt-4">
-          {messages.length > 0 ? messages.map((msg, index) => <Message key={index} role={msg.role} content={msg.content} />) : (
+        <div ref={chatContainerRef} className="w-full max-w-2xl space-y-4 overflow-y-auto mt-4">
+          {messages.length > 0 ? (
+            messages.map((msg, index) => <Message key={index} role={msg.role} content={msg.content} />)
+          ) : (
             <div className="flex flex-col items-center mt-4">
               <div className="flex items-center gap-3">
                 <Image src={assets.logo_icon} alt="Logo" width={64} height={64} />

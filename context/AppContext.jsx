@@ -22,17 +22,18 @@ export const AppContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [authToken, setAuthToken] = useState(null); // Cache token state
 
-  // Fetch auth token when user is available
+  // Fetch auth token only if user exists
   const fetchAuthToken = useCallback(async () => {
-    if (!user) return; // Ensure user is available before fetching token
-    try {
-      const token = await getToken({ template: "charles" });
-      setAuthToken(token); // Set token state
-    } catch (error) {
-      console.error("🚨 Error fetching token:", error);
-      toast.error("Failed to fetch authentication token.");
+    if (user && !authToken) {
+      try {
+        const token = await getToken({ template: "charles" });
+        setAuthToken(token); // Set token state
+      } catch (error) {
+        console.error("🚨 Error fetching token:", error);
+        toast.error("Failed to fetch authentication token.");
+      }
     }
-  }, [getToken, user]);
+  }, [getToken, user, authToken]);
 
   // Fetch user chats when user and authToken are available
   const fetchUserChats = useCallback(async () => {
@@ -40,7 +41,7 @@ export const AppContextProvider = ({ children }) => {
 
     setLoading(true);
     try {
-      const { data } = await axios.get("/api/chat/get", {
+      const { data } = await axios.get("/api/chat/get", { // ✅ Updated API URL
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
@@ -51,6 +52,7 @@ export const AppContextProvider = ({ children }) => {
         if (data.chats.length === 0) {
           await createNewChat();
         } else {
+          // Sorting chats by last updated time and selecting the most recent chat
           data.chats.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
           setSelectedChat(data.chats[0]);
           console.log("🔵 Selected Chat:", data.chats[0]);
@@ -68,22 +70,26 @@ export const AppContextProvider = ({ children }) => {
 
   // Fetch chats on initial load or when user/authToken changes
   useEffect(() => {
-    if (user && authToken) {
-      fetchUserChats();
+    fetchAuthToken();
+  }, [fetchAuthToken]);
+
+  useEffect(() => {
+    if (authToken) {
+      fetchUserChats(); // Fetch user chats once the authToken is available
     }
-  }, [user, authToken, fetchUserChats]);
+  }, [authToken, fetchUserChats]);
 
   // Create new chat if needed
-  const createNewChat = async () => {
+  const createNewChat = useCallback(async () => {
     if (!user || !authToken) return;
     try {
       setLoading(true);
-      const { data } = await axios.post("/api/chat/create", {}, {
+      const { data } = await axios.post("/api/chat/create", {}, { // ✅ Updated API URL
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
       if (data.success) {
-        await fetchUserChats(); // Ensure state updates immediately
+        await fetchUserChats(); // Ensure state updates immediately after creating chat
       } else {
         toast.error(data.message);
       }
@@ -93,7 +99,7 @@ export const AppContextProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, authToken, fetchUserChats]);
 
   // Memoize context value to avoid unnecessary re-renders
   const contextValue = useMemo(() => ({

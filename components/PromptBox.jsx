@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { assets } from "@/assets/assets";
 import { useAppContext } from "@/context/AppContext";
@@ -9,6 +9,7 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState(null);
   const { user, chats, setChats, selectedChat, setSelectedChat } = useAppContext();
+  const textareaRef = useRef(null);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -30,9 +31,20 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
     }));
   };
 
+  useEffect(() => {
+    if (!isLoading) {
+      textareaRef.current?.focus();
+    }
+  }, [isLoading]);
+
   const sendPrompt = async (e) => {
     e.preventDefault();
     const promptCopy = prompt;
+
+    if (!prompt.trim()) {
+      toast.error("Message cannot be empty");
+      return;
+    }
 
     try {
       if (!user) return toast.error("Login to send a message");
@@ -103,14 +115,18 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
       setPrompt(promptCopy);
     } finally {
       setIsLoading(false);
+      setPrompt(""); // Clear prompt after sending
     }
   };
 
-  const sendButtonClass = prompt && !isLoading ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-500";
+  const sendButtonClass = isLoading || !prompt.trim()
+    ? "bg-gray-500 cursor-not-allowed"
+    : "bg-blue-600 hover:bg-blue-700";
 
   return (
     <form onSubmit={sendPrompt} className="w-full max-w-2xl bg-[#404045] p-4 rounded-3xl mt-4 transition-all">
       <textarea
+        ref={textareaRef}
         onKeyDown={handleKeyDown}
         className="outline-none w-full resize-none overflow-hidden break-words bg-transparent text-white"
         rows={2}
@@ -143,7 +159,7 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
           <button
             aria-label="Send message"
             className={`${sendButtonClass} rounded-full p-2 cursor-pointer transition`}
-            disabled={!prompt || isLoading}
+            disabled={!prompt.trim() || isLoading}
           >
             {isLoading ? (
               <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

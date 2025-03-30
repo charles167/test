@@ -20,7 +20,7 @@ const ChatSchema = new mongoose.Schema(
           type: String,
           required: true,
           trim: true,
-          validate: [content => content.trim().length > 0, 'Message content cannot be empty'],
+          validate: [(content) => content.trim().length > 0, "Message content cannot be empty"],
         },
         timestamp: { type: Date, default: Date.now },
       },
@@ -30,11 +30,7 @@ const ChatSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Indexes for performance
-ChatSchema.index({ userId: 1 });
-ChatSchema.index({ createdAt: -1 });
-
-// Model assignment to prevent model recompilation issues
+// Ensure model is not recompiled when running Next.js in development mode
 const Chat = mongoose.models.Chat || mongoose.model("Chat", ChatSchema);
 
-export default Chat;
+export default Chat; // ✅ Ensure this export is present

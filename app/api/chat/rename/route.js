@@ -1,11 +1,11 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { getAuth } from "@clerk/nextjs";
+import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 
 export async function PATCH(req) {
   try {
-    // Authenticate the user
     const { userId } = getAuth(req);
     if (!userId) {
       return NextResponse.json(
@@ -14,10 +14,7 @@ export async function PATCH(req) {
       );
     }
 
-    // Parse request body
     const { chatId, name } = await req.json();
-
-    // Validate input fields
     if (!chatId || !name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
         { success: false, message: "chatId and a valid name are required" },
@@ -25,17 +22,14 @@ export async function PATCH(req) {
       );
     }
 
-    // Connect to the database
     await connectDB();
 
-    // Find and update the chat
     const updatedChat = await Chat.findOneAndUpdate(
-      { _id: chatId, userId }, // Ensure the chat belongs to the authenticated user
-      { name: name.trim() }, // Trim input to prevent unnecessary spaces
-      { new: true, runValidators: true } // Return updated chat & enforce validation
+      { _id: chatId, userId },
+      { name: name.trim() },
+      { new: true, runValidators: true }
     ).lean();
 
-    // Check if the chat was found and updated
     if (!updatedChat) {
       return NextResponse.json(
         { success: false, message: "Chat not found or unauthorized access" },
@@ -47,12 +41,10 @@ export async function PATCH(req) {
       { success: true, message: "Chat renamed successfully", data: updatedChat },
       { status: 200 }
     );
-
   } catch (error) {
-    console.error("🚨 Error renaming chat:", error);
-
+    console.error("Error renaming chat:", error);
     return NextResponse.json(
-      { success: false, message: "An error occurred while renaming the chat" },
+      { success: false, message: "Failed to rename chat" },
       { status: 500 }
     );
   }

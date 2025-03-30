@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { useClerk, UserButton } from "@clerk/nextjs";
 import { useAppContext } from "@/context/AppContext";
@@ -6,62 +6,21 @@ import { assets } from "@/assets/assets";
 import ChatLabel from "./ChatLabel";
 import axios from "axios";
 import { toast } from "react-toastify";
-import ReactLoading from "react-loading"; // Importing the spinner
+import ReactLoading from "react-loading"; 
 
 const Sidebar = ({ expand, setExpand }) => {
   const { openSignIn } = useClerk();
   const { user, chats = [], setChats, createNewChat } = useAppContext();
-
   const [newChatName, setNewChatName] = useState("");
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [error, setError] = useState(null); // To handle errors
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false); // For profile dropdown
+  const [error, setError] = useState(null);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
-  // Fetch chats
-  const fetchChats = async () => {
-    setIsLoading(true);
-    setError(null); // Reset error before trying to fetch chats
-    try {
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API key is missing. Check environment variables.");
-  
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        { contents: [{ parts: [{ text: "Hello, Gemini!" }] }] },
-        { headers: { "Content-Type": "application/json" } }
-      );
-  
-      const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response from API.";
-      setChats([generatedText]);
-    } catch (error) {
-      console.error("Error fetching chats:", error.response?.data || error.message);
-      setError("Failed to load chats. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  useEffect(() => {
-    fetchChats();
-  }, []);
-
-  // Rename chat
-  const handleRenameChat = useCallback((chatId, newName) => {
-    setChats((prevChats) =>
-      prevChats.map((chat) => (chat._id === chatId ? { ...chat, title: newName } : chat))
-    );
-  }, [setChats]);
-
-  // Delete chat
-  const handleDeleteChat = useCallback((chatId) => {
-    setChats((prevChats) => prevChats.filter((chat) => chat._id !== chatId));
-  }, [setChats]);
-
-  // Create new chat
+  // Function to create a new chat
   const handleCreateNewChat = async () => {
     if (!newChatName.trim()) {
       toast.error("Chat name cannot be empty.");
@@ -80,26 +39,51 @@ const Sidebar = ({ expand, setExpand }) => {
     }
   };
 
-  // **Fixed `toLowerCase()` error**
-  const filteredChats = chats.filter(
-    (chat) => chat?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false
+  // Fetch chats
+  const fetchChats = async () => {
+    setIsLoading(true);
+    setError(null); 
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) throw new Error("API key is missing.");
+  
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        { contents: [{ parts: [{ text: "Hello, Gemini!" }] }] },
+        { headers: { "Content-Type": "application/json" } }
+      );
+  
+      const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response from API.";
+      setChats([generatedText]);
+    } catch (error) {
+      console.error("Error fetching chats:", error.response?.data || error.message);
+      setError("Failed to load chats. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChats();
+  }, []);
+
+  const filteredChats = useMemo(() => 
+    chats.filter(chat => chat?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false), 
+    [chats, searchQuery]
   );
 
   // Keyboard accessibility for expanding sidebar and dark mode
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Enter") {
-        setExpand(!expand); // Toggle sidebar
+        setExpand(!expand);
       }
       if (e.key === "d" || e.key === "D") {
-        setIsDarkMode(!isDarkMode); // Toggle dark mode
+        setIsDarkMode(!isDarkMode);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [expand, isDarkMode]);
 
   return (
@@ -168,12 +152,8 @@ const Sidebar = ({ expand, setExpand }) => {
       {/* Profile Dropdown */}
       {isProfileDropdownOpen && (
         <div className="absolute mt-2 right-0 bg-gray-800 text-white rounded-lg shadow-lg w-48">
-          <button className="block w-full p-2 hover:bg-gray-600 text-left" onClick={() => console.log('Profile settings')}>
-            Profile Settings
-          </button>
-          <button className="block w-full p-2 hover:bg-gray-600 text-left" onClick={() => console.log('Sign out')}>
-            Sign Out
-          </button>
+          <button className="block w-full p-2 hover:bg-gray-600 text-left" onClick={() => console.log('Profile settings')}>Profile Settings</button>
+          <button className="block w-full p-2 hover:bg-gray-600 text-left" onClick={() => console.log('Sign out')}>Sign Out</button>
         </div>
       )}
 

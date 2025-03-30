@@ -1,14 +1,12 @@
-import { getAuth } from "@clerk/nextjs/server"; // Corrected Clerk import for Next.js
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
+import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import sanitize from "sanitize-html";  // Import sanitize library (if using)
 
-// POST API handler to create a new chat
 export async function POST(req) {
   try {
-    // Authenticate user
     const { userId } = getAuth(req);
-
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
@@ -16,39 +14,45 @@ export async function POST(req) {
       );
     }
 
-    // Parse request body
-    const { name = "New Chat" } = await req.json();
-
-    // Validate name field
-    if (!name.trim()) {
+    const { name, message } = await req.json();
+    
+    if (!name || !message) {
       return NextResponse.json(
-        { success: false, message: "Chat name cannot be empty" },
+        { success: false, message: "Name and initial message are required" },
         { status: 400 }
       );
     }
 
-    // Connect to MongoDB
-    await connectDB();
+    // Sanitize inputs
+    const sanitizedName = sanitize(name);
+    const sanitizedMessage = sanitize(message);
 
-    // Create new chat
-    const newChat = await Chat.create({
+    // Optional: Add length validation for message
+    if (sanitizedMessage.length > 500) {
+      return NextResponse.json(
+        { success: false, message: "Message is too long" },
+        { status: 400 }
+      );
+    }
+
+    const newChat = new Chat({
       userId,
-      messages: [],
-      name,
+      name: sanitizedName,
+      messages: [
+        { role: "user", content: sanitizedMessage, timestamp: Date.now() },
+      ],
     });
 
+    await newChat.save();
+
     return NextResponse.json(
-      {
-        success: true,
-        message: "Chat created successfully",
-        chat: newChat.toObject(), // Convert to plain object
-      },
+      { success: true, message: "Chat created successfully", data: newChat },
       { status: 201 }
     );
   } catch (error) {
     console.error("Error creating chat:", error);
     return NextResponse.json(
-      { success: false, message: error.message || "An error occurred while creating the chat" },
+      { success: false, message: "Failed to create chat" },
       { status: 500 }
     );
   }

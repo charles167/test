@@ -1,18 +1,16 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { getAuth } from "@clerk/nextjs/server"; // Corrected import
+import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import axios from "axios";
 import mongoose from "mongoose";
 
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Ensure this is set in .env
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function POST(req) {
   try {
-    // Authenticate user
-    const { userId } = getAuth(req); // Adjust for authentication
-
+    const { userId } = getAuth(req);
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
@@ -20,9 +18,7 @@ export async function POST(req) {
       );
     }
 
-    // Extract chatId and prompt from request body
     const { chatId, prompt } = await req.json();
-
     if (!chatId || !prompt || prompt.trim().length < 5) {
       return NextResponse.json(
         { success: false, message: "chatId and prompt (min 5 characters) required" },
@@ -30,7 +26,6 @@ export async function POST(req) {
       );
     }
 
-    // Validate chatId format
     if (!mongoose.Types.ObjectId.isValid(chatId)) {
       return NextResponse.json(
         { success: false, message: "Invalid chat ID" },
@@ -38,10 +33,8 @@ export async function POST(req) {
       );
     }
 
-    // Connect to MongoDB
     await connectDB();
 
-    // Find chat in database
     const chatData = await Chat.findOne({ userId, _id: chatId }).select("messages").lean();
     if (!chatData) {
       return NextResponse.json(
@@ -50,17 +43,8 @@ export async function POST(req) {
       );
     }
 
-    // Add user prompt to chat messages
     const userPrompt = { role: "user", content: prompt, timestamp: Date.now() };
     chatData.messages.push(userPrompt);
-
-    // Send request to Google Gemini API
-    if (!GEMINI_API_KEY) {
-      return NextResponse.json(
-        { success: false, message: "Server error: Missing API key" },
-        { status: 500 }
-      );
-    }
 
     const requestBody = {
       contents: [{ parts: [{ text: prompt }] }],
@@ -80,7 +64,6 @@ export async function POST(req) {
       );
     }
 
-    // Extract AI response safely
     const response =
       result?.data?.candidates?.[0]?.content?.parts?.[0]?.text || "AI response unavailable";
 
@@ -91,19 +74,15 @@ export async function POST(req) {
       );
     }
 
-    // Save AI response to chat
     const assistantMessage = { role: "assistant", content: response, timestamp: Date.now() };
     chatData.messages.push(assistantMessage);
     await Chat.updateOne({ _id: chatId }, { messages: chatData.messages });
 
-    console.log("User Prompt:", userPrompt);
-    console.log("AI Response:", assistantMessage);
-
     return NextResponse.json({ success: true, data: assistantMessage });
   } catch (error) {
-    console.error("Server Error:", error);
+    console.error("Error:", error);
     return NextResponse.json(
-      { success: false, message: error.message || "Unexpected error" },
+      { success: false, message: "Unexpected error" },
       { status: 500 }
     );
   }
