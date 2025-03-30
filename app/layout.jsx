@@ -4,9 +4,10 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { AppContextProvider } from "@/context/AppContext";
 import { Toaster } from "react-hot-toast";
 
+// Importing the Inter font
 const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
+  subsets: ["latin"], // Specify which subsets to include
+  variable: "--font-inter", // Optional: If you want to define a custom variable for the font
 });
 
 export const metadata = {
