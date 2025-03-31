@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { assets } from "@/assets/assets";
+import { motion, AnimatePresence } from "framer-motion";
 
 const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -27,11 +28,11 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
 
   const handleDelete = () => {
     setShowDeleteConfirmation(true);
-    setMenuOpen(false); // Close menu on delete
+    setMenuOpen(false);
   };
 
   const confirmDelete = () => {
-    onDelete(index); // Perform the delete action
+    onDelete(index);
     setShowDeleteConfirmation(false);
   };
 
@@ -49,57 +50,81 @@ const ChatLabel = ({ chatName, index, onRename, onDelete }) => {
           onChange={(e) => setNewName(e.target.value)}
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
-          className="bg-transparent text-white border border-gray-500 px-2 py-1 rounded-md w-full"
+          className="bg-transparent text-white border border-gray-500 px-2 py-1 rounded-md w-full focus:ring focus:ring-indigo-400"
           autoFocus
         />
       ) : (
-        <span className="text-white">{chatName}</span>
+        <span className="text-white truncate">{chatName}</span>
       )}
 
       {/* Three-Dot Menu Button */}
       <button
         onClick={() => setMenuOpen((prev) => !prev)}
-        className="opacity-0 group-hover:opacity-100 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        className="opacity-0 group-hover:opacity-100 transition focus:outline-none focus:ring-2 focus:ring-indigo-500 p-1 rounded"
         aria-label="Open menu"
-        tabIndex={0}
       >
         <Image src={assets.menu_icon} alt="Menu" width={16} height={16} />
       </button>
 
-      {/* Dropdown Menu */}
-      {menuOpen && (
-        <div className="absolute right-0 top-8 bg-gray-800 text-white text-sm rounded-md shadow-md p-2 z-10 transition-opacity">
-          <button
-            onClick={handleRename}
-            className="block w-full hover:bg-gray-600 p-1 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+      {/* Dropdown Menu with Animation */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute right-0 top-8 bg-gray-800 text-white text-sm rounded-md shadow-md p-2 z-10"
           >
-            ✏ Rename
-          </button>
-          <button
-            onClick={handleDelete}
-            className="block w-full text-red-500 hover:bg-gray-600 p-1 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            🗑 Delete
-          </button>
-        </div>
-      )}
+            <button
+              onClick={handleRename}
+              className="block w-full hover:bg-gray-600 p-1 rounded transition"
+            >
+              ✏ Rename
+            </button>
+            <button
+              onClick={handleDelete}
+              className="block w-full text-red-500 hover:bg-gray-600 p-1 rounded transition"
+            >
+              🗑 Delete
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirmation && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-20">
-          <div className="bg-white text-black p-4 rounded-md shadow-lg">
-            <p>Are you sure you want to delete this chat?</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={cancelDelete} className="bg-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Cancel
-              </button>
-              <button onClick={confirmDelete} className="bg-red-500 p-2 text-white rounded focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {showDeleteConfirmation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-gray-500 bg-opacity-50 flex justify-center items-center z-20"
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.8 }}
+              className="bg-white text-black p-4 rounded-md shadow-lg"
+            >
+              <p>Are you sure you want to delete this chat?</p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={cancelDelete}
+                  className="bg-gray-300 p-2 rounded hover:bg-gray-400 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="bg-red-500 p-2 text-white rounded hover:bg-red-600 transition"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -3,10 +3,15 @@ import Chat from "@/models/Chat";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { headers } from "next/headers";
 
 export async function DELETE(req) {
   try {
-    const { userId } = getAuth(req);
+    // Ensure DB connection
+    await connectDB();
+
+    // Authenticate user
+    const { userId } = getAuth({ headers: headers() });
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
@@ -14,20 +19,25 @@ export async function DELETE(req) {
       );
     }
 
+    // Parse request body
     const { chatId } = await req.json();
-    if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
+
+    if (!chatId || typeof chatId !== "string" || !mongoose.Types.ObjectId.isValid(chatId.trim())) {
       return NextResponse.json(
-        { success: false, message: "Invalid chatId format" },
+        { success: false, message: "Invalid or missing chatId" },
         { status: 400 }
       );
     }
 
-    await connectDB();
+    // Trim chatId to remove extra spaces
+    const trimmedChatId = chatId.trim();
 
-    const deletedChat = await Chat.findOneAndDelete({ _id: chatId, userId });
+    // Find and delete chat
+    const deletedChat = await Chat.findOneAndDelete({ _id: trimmedChatId, userId });
+
     if (!deletedChat) {
       return NextResponse.json(
-        { success: false, message: "Chat not found or unauthorized" },
+        { success: false, message: "Chat not found or unauthorized access" },
         { status: 404 }
       );
     }
@@ -39,7 +49,7 @@ export async function DELETE(req) {
   } catch (error) {
     console.error("Error deleting chat:", error);
     return NextResponse.json(
-      { success: false, message: "Failed to delete chat" },
+      { success: false, message: "An unexpected error occurred while deleting chat" },
       { status: 500 }
     );
   }

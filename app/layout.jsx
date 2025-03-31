@@ -7,7 +7,7 @@ import { Toaster } from "react-hot-toast";
 // Importing the Inter font
 const inter = Inter({
   subsets: ["latin"], // Specify which subsets to include
-  variable: "--font-inter", // Optional: If you want to define a custom variable for the font
+  variable: "--font-inter", // Define a CSS variable
 });
 
 export const metadata = {
@@ -21,7 +21,12 @@ export default function RootLayout({ children }) {
       <html lang="en">
         <body className={`${inter.className} antialiased`}>
           <AppContextProvider>
-            <Toaster toastOptions={{ success: { className: "toast-success" }, error: { className: "toast-error" } }} />
+            <Toaster
+              toastOptions={{
+                success: { className: "toast-success" },
+                error: { className: "toast-error" },
+              }}
+            />
             {children}
           </AppContextProvider>
         </body>

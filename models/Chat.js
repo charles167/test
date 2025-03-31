@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+// Chat Schema Definition
 const ChatSchema = new mongoose.Schema(
   {
     name: {
@@ -29,6 +30,9 @@ const ChatSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Add indexes for performance optimization
+ChatSchema.index({ userId: 1, createdAt: -1 }); // Example index for optimization
 
 // Ensure model is not recompiled when running Next.js in development mode
 const Chat = mongoose.models.Chat || mongoose.model("Chat", ChatSchema);

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { assets } from "@/assets/assets";
 import Message from "@/components/Message";
@@ -12,14 +12,13 @@ export default function Home() {
   const [messages, setMessages] = useState([]); // Chat messages
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchResult, setSearchResult] = useState("");
   const chatContainerRef = useRef(null);
 
   // Handle search input change
   const handleSearch = (e) => setSearchTerm(e.target.value);
 
   // Fetch response from Gemini API
-  const handleSearchSubmit = async () => {
+  const handleSearchSubmit = useCallback(async () => {
     if (!searchTerm.trim()) return;
     setIsLoading(true);
 
@@ -34,9 +33,9 @@ export default function Home() {
       );
 
       console.log("API Response:", response.data);
-      const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response from API.";
-      
-      setSearchResult(generatedText);
+      const generatedText =
+        response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response from AI.";
+
       setMessages((prev) => [
         ...prev,
         { role: "user", content: searchTerm },
@@ -44,18 +43,17 @@ export default function Home() {
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
-      setSearchResult("Error fetching data.");
       setMessages((prev) => [
         ...prev,
         { role: "user", content: searchTerm },
-        { role: "assistant", content: "Sorry, something went wrong." },
+        { role: "assistant", content: "❌ Error: Failed to fetch AI response." },
       ]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchTerm]);
 
-  // Scroll to the bottom of the message list when new messages are added
+  // Auto-scroll chat when messages update
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -70,18 +68,32 @@ export default function Home() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8 bg-[#292a2d] text-white relative">
         <div className="md:hidden absolute px-4 top-6 flex items-center justify-between w-full">
-          <Image onClick={() => setExpand(!expand)} className="rotate-180 cursor-pointer" src={assets.menu_icon} alt="Menu" width={30} height={30} />
-          <Image className="opacity-70 cursor-pointer" src={assets.chat_icon} alt="Chat" width={30} height={30} />
+          <Image
+            onClick={() => setExpand(!expand)}
+            className="rotate-180 cursor-pointer"
+            src={assets.menu_icon}
+            alt="Menu"
+            width={30}
+            height={30}
+          />
+          <Image
+            className="opacity-70 cursor-pointer"
+            src={assets.chat_icon}
+            alt="Chat"
+            width={30}
+            height={30}
+          />
         </div>
 
-        {/* Chat Search */}
+        {/* Search Input */}
         <div className="w-full max-w-2xl mt-4">
           <input
             type="text"
-            className="w-full px-4 py-2 bg-[#333] text-white rounded-lg"
-            placeholder="Search..."
+            className="w-full px-4 py-2 bg-[#333] text-white rounded-lg focus:outline-none"
+            placeholder="Ask something..."
             value={searchTerm}
             onChange={handleSearch}
+            onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
           />
           <button
             onClick={handleSearchSubmit}
@@ -92,24 +104,24 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Message Area */}
-        <div ref={chatContainerRef} className="w-full max-w-2xl space-y-4 overflow-y-auto mt-4">
+        {/* Chat Messages */}
+        <div ref={chatContainerRef} className="w-full max-w-2xl space-y-4 overflow-y-auto mt-4 h-[60vh]">
           {messages.length > 0 ? (
             messages.map((msg, index) => <Message key={index} role={msg.role} content={msg.content} />)
           ) : (
             <div className="flex flex-col items-center mt-4">
               <div className="flex items-center gap-3">
                 <Image src={assets.logo_icon} alt="Logo" width={64} height={64} />
-                <p className="text-2xl font-medium">Hi, I'm Charlesdeep</p>
+                <p className="text-2xl font-medium">Hi, I'm CharlesDeep</p>
               </div>
-              <p className="text-sm mt-2">How can I help today?</p>
+              <p className="text-sm mt-2">How can I assist you today?</p>
             </div>
           )}
         </div>
 
         {/* Prompt Input Box */}
         <PromptBox isLoading={isLoading} setIsLoading={setIsLoading} />
-        <p className="text-xs absolute bottom-1 text-gray-500">AI-generated, for reference only</p>
+        <p className="text-xs absolute bottom-1 text-gray-500">⚡ AI-generated responses may not be 100% accurate.</p>
       </div>
     </div>
   );

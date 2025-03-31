@@ -4,13 +4,19 @@ import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import axios from "axios";
 import mongoose from "mongoose";
+import { headers } from "next/headers";
 
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function POST(req) {
   try {
-    const { userId } = getAuth(req);
+    // Ensure DB connection
+    await connectDB();
+
+    // Get user authentication
+    const { userId } = getAuth({ headers: headers() });
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
@@ -18,6 +24,7 @@ export async function POST(req) {
       );
     }
 
+    // Parse request body
     const { chatId, prompt } = await req.json();
     if (!chatId || !prompt || prompt.trim().length < 5) {
       return NextResponse.json(
@@ -33,8 +40,7 @@ export async function POST(req) {
       );
     }
 
-    await connectDB();
-
+    // Fetch existing chat
     const chatData = await Chat.findOne({ userId, _id: chatId }).select("messages").lean();
     if (!chatData) {
       return NextResponse.json(
@@ -43,19 +49,20 @@ export async function POST(req) {
       );
     }
 
+    // Add user prompt to messages
     const userPrompt = { role: "user", content: prompt, timestamp: Date.now() };
     chatData.messages.push(userPrompt);
 
-    const requestBody = {
-      contents: [{ parts: [{ text: prompt }] }],
-    };
-
-    let result;
+    // Call AI API
+    let aiResponse;
     try {
-      result = await axios.post(GEMINI_API_URL, requestBody, {
-        headers: { "Content-Type": "application/json" },
-        params: { key: GEMINI_API_KEY },
-      });
+      const { data } = await axios.post(
+        `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+        { contents: [{ parts: [{ text: prompt }] }] },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+      aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || "AI response unavailable";
     } catch (aiError) {
       console.error("AI API Error:", aiError?.response?.data || aiError.message);
       return NextResponse.json(
@@ -64,25 +71,16 @@ export async function POST(req) {
       );
     }
 
-    const response =
-      result?.data?.candidates?.[0]?.content?.parts?.[0]?.text || "AI response unavailable";
-
-    if (!response) {
-      return NextResponse.json(
-        { success: false, message: "No valid AI response" },
-        { status: 500 }
-      );
-    }
-
-    const assistantMessage = { role: "assistant", content: response, timestamp: Date.now() };
+    // Store AI response
+    const assistantMessage = { role: "assistant", content: aiResponse, timestamp: Date.now() };
     chatData.messages.push(assistantMessage);
     await Chat.updateOne({ _id: chatId }, { messages: chatData.messages });
 
     return NextResponse.json({ success: true, data: assistantMessage });
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Unexpected Error:", error);
     return NextResponse.json(
-      { success: false, message: "Unexpected error" },
+      { success: false, message: "Unexpected server error" },
       { status: 500 }
     );
   }

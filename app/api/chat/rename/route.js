@@ -3,10 +3,13 @@ import Chat from "@/models/Chat";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import sanitize from "sanitize-html";
+import { headers } from "next/headers";
 
 export async function PATCH(req) {
   try {
-    const { userId } = getAuth(req);
+    // Authenticate user
+    const { userId } = getAuth({ headers: headers() });
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
@@ -14,19 +17,35 @@ export async function PATCH(req) {
       );
     }
 
+    // Connect to database
+    await connectDB();
+
+    // Parse request body
     const { chatId, name } = await req.json();
-    if (!chatId || !name || typeof name !== "string" || name.trim() === "") {
+
+    // Validate chatId
+    if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
       return NextResponse.json(
-        { success: false, message: "chatId and a valid name are required" },
+        { success: false, message: "Invalid chatId format" },
         { status: 400 }
       );
     }
 
-    await connectDB();
+    // Validate name input
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      return NextResponse.json(
+        { success: false, message: "A valid name is required" },
+        { status: 400 }
+      );
+    }
 
+    // Sanitize the name to prevent XSS attacks
+    const sanitizedName = sanitize(name.trim());
+
+    // Update chat name
     const updatedChat = await Chat.findOneAndUpdate(
       { _id: chatId, userId },
-      { name: name.trim() },
+      { name: sanitizedName },
       { new: true, runValidators: true }
     ).lean();
 

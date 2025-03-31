@@ -1,4 +1,5 @@
-"use client";
+"use client";  // Add this directive at the top of the file
+
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import axios from "axios";
