@@ -37,4 +37,4 @@ ChatSchema.index({ userId: 1, createdAt: -1 }); // Example index for optimizatio
 // Ensure model is not recompiled when running Next.js in development mode
 const Chat = mongoose.models.Chat || mongoose.model("Chat", ChatSchema);
 
-export default Chat; // ✅ Ensure this export is present
+export default Chat;
