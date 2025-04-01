@@ -1,21 +1,13 @@
-"use client";
 import { assets } from "@/assets/assets";
 import Image from "next/image";
-import React, { useCallback } from "react";
+import React from "react";
 
 const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislike }) => {
-  const handleEvent = useCallback((e, callback) => {
-    e.stopPropagation();
-    if (callback) callback();
-  }, []);
-
   return (
     <div className="flex flex-col items-center w-full max-w-3xl text-sm">
       <div className={`flex flex-col w-full mb-8 ${role === "user" ? "items-end" : ""}`}>
         <div
-          className={`group relative flex max-w-2xl py-3 px-5 rounded-xl transition ${
-            role === "user" ? "bg-[#414158]" : "gap-3"
-          }`}
+          className={`group relative flex max-w-2xl py-3 rounded-xl transition ${role === "user" ? "bg-[#414158] px-5" : "gap-3"}`}
         >
           {/* Hover Icons */}
           <div
@@ -29,8 +21,8 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
               width={16}
               height={16}
               className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
-              onClick={(e) => handleEvent(e, onCopy)}
-              role="button"
+              onClick={(e) => { e.stopPropagation(); onCopy(); }}
+              aria-label="Copy message"
               tabIndex={0}
             />
             {role === "user" ? (
@@ -40,8 +32,8 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
                 width={16}
                 height={16}
                 className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
-                onClick={(e) => handleEvent(e, onEdit)}
-                role="button"
+                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                aria-label="Edit message"
                 tabIndex={0}
               />
             ) : (
@@ -52,8 +44,8 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
                   width={16}
                   height={16}
                   className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
-                  onClick={(e) => handleEvent(e, onRegenerate)}
-                  role="button"
+                  onClick={(e) => { e.stopPropagation(); onRegenerate(); }}
+                  aria-label="Regenerate message"
                   tabIndex={0}
                 />
                 <Image
@@ -62,8 +54,8 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
                   width={16}
                   height={16}
                   className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
-                  onClick={(e) => handleEvent(e, onLike)}
-                  role="button"
+                  onClick={(e) => { e.stopPropagation(); onLike(); }}
+                  aria-label="Like message"
                   tabIndex={0}
                 />
                 <Image
@@ -72,8 +64,8 @@ const Message = ({ role, content, onCopy, onEdit, onRegenerate, onLike, onDislik
                   width={16}
                   height={16}
                   className="cursor-pointer hover:bg-gray-500 p-1 rounded-full"
-                  onClick={(e) => handleEvent(e, onDislike)}
-                  role="button"
+                  onClick={(e) => { e.stopPropagation(); onDislike(); }}
+                  aria-label="Dislike message"
                   tabIndex={0}
                 />
               </>

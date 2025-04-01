@@ -1,22 +1,18 @@
 import connectDB from "@/config/db";
 import Chat from "@/models/Chat";
-import { getAuth } from "@clerk/nextjs/server";
+import { getAuth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 import axios from "axios";
-import mongoose from "mongoose";
-import { headers } from "next/headers";
 
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// Google Gemini API URL and API Key from environment variables
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Ensure this is in your .env file
 
 export async function POST(req) {
   try {
-    // Ensure DB connection
-    await connectDB();
+    // Get the authenticated user
+    const { userId } = getAuth(req);
 
-    // Get user authentication
-    const { userId } = getAuth({ headers: headers() });
     if (!userId) {
       return NextResponse.json(
         { success: false, message: "User not authenticated" },
@@ -24,24 +20,23 @@ export async function POST(req) {
       );
     }
 
-    // Parse request body
+    // Extract chatId and prompt from request body
     const { chatId, prompt } = await req.json();
+
+    // Validate chatId and prompt
     if (!chatId || !prompt || prompt.trim().length < 5) {
       return NextResponse.json(
-        { success: false, message: "chatId and prompt (min 5 characters) required" },
+        { success: false, message: "chatId and prompt (with a minimum of 5 characters) are required" },
         { status: 400 }
       );
     }
 
-    if (!mongoose.Types.ObjectId.isValid(chatId)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid chat ID" },
-        { status: 400 }
-      );
-    }
+    // Connect to the database
+    await connectDB();
 
-    // Fetch existing chat
-    const chatData = await Chat.findOne({ userId, _id: chatId }).select("messages").lean();
+    // Find the chat in the database
+    const chatData = await Chat.findOne({ userId, _id: chatId }).select("messages");
+
     if (!chatData) {
       return NextResponse.json(
         { success: false, message: "Chat not found" },
@@ -49,38 +44,83 @@ export async function POST(req) {
       );
     }
 
-    // Add user prompt to messages
-    const userPrompt = { role: "user", content: prompt, timestamp: Date.now() };
+    // Add user message to chat history
+    const userPrompt = {
+      role: "user",
+      content: prompt,
+      timestamp: Date.now(),
+    };
     chatData.messages.push(userPrompt);
 
-    // Call AI API
-    let aiResponse;
-    try {
-      const { data } = await axios.post(
-        `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
-        { contents: [{ parts: [{ text: prompt }] }] },
-        { headers: { "Content-Type": "application/json" } }
-      );
+    // Prepare request body for Google Gemini API
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+          ],
+        },
+      ],
+    };
 
-      aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text || "AI response unavailable";
+    // Send request to Google Gemini API
+    let result;
+    try {
+      result = await axios.post(
+        GEMINI_API_URL,
+        requestBody,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          params: {
+            key: GEMINI_API_KEY, // API key as a query parameter
+          },
+        }
+      );
     } catch (aiError) {
-      console.error("AI API Error:", aiError?.response?.data || aiError.message);
+      console.error("Error generating AI response:", aiError);
       return NextResponse.json(
-        { success: false, message: aiError?.response?.data?.error?.message || "AI response failed" },
-        { status: aiError?.response?.status || 500 }
+        { success: false, message: "Failed to generate AI response" },
+        { status: 500 }
       );
     }
 
-    // Store AI response
-    const assistantMessage = { role: "assistant", content: aiResponse, timestamp: Date.now() };
-    chatData.messages.push(assistantMessage);
-    await Chat.updateOne({ _id: chatId }, { messages: chatData.messages });
+    const response = result?.data?.contents?.[0]?.parts?.[0]?.text;
 
-    return NextResponse.json({ success: true, data: assistantMessage });
+    if (!response) {
+      console.error("No valid AI response received.");
+      return NextResponse.json(
+        { success: false, message: "No valid AI response received" },
+        { status: 500 }
+      );
+    }
+
+    // AI response successfully received
+    const assistantMessage = {
+      role: "assistant",
+      content: response,
+      timestamp: Date.now(),
+    };
+
+    // Add AI response to chat history and save
+    chatData.messages.push(assistantMessage);
+    await chatData.save();
+
+    console.log("User prompt added:", userPrompt);
+    console.log("Assistant message:", assistantMessage);
+
+    return NextResponse.json({
+      success: true,
+      data: assistantMessage,
+    });
+
   } catch (error) {
-    console.error("Unexpected Error:", error);
+    console.error("Error during processing:", error);
+
+    // Return a more detailed error message
     return NextResponse.json(
-      { success: false, message: "Unexpected server error" },
+      { success: false, message: error.message || "An unexpected error occurred" },
       { status: 500 }
     );
   }

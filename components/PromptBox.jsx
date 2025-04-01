@@ -1,5 +1,4 @@
-"use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { assets } from "@/assets/assets";
 import { useAppContext } from "@/context/AppContext";
@@ -8,121 +7,160 @@ import toast from "react-hot-toast";
 
 const PromptBox = ({ setIsLoading, isLoading }) => {
   const [prompt, setPrompt] = useState("");
-  const [error, setError] = useState(null);
-  const [typingMessage, setTypingMessage] = useState("");
   const { user, chats, setChats, selectedChat, setSelectedChat } = useAppContext();
-  const textareaRef = useRef(null);
-
-  useEffect(() => {
-    if (!isLoading) {
-      textareaRef.current?.focus();
-    }
-  }, [isLoading]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendPrompt();
+      sendPrompt(e);
     }
   };
 
-  const updateChatMessages = (chatId, newMessage) => {
-    setChats((prevChats) =>
-      prevChats.map((chat) =>
-        chat._id === chatId ? { ...chat, messages: [...chat.messages, newMessage] } : chat
-      )
-    );
-    setSelectedChat((prev) => ({
-      ...prev,
-      messages: [...prev.messages, newMessage],
-    }));
-  };
-
-  const sendPrompt = async () => {
-    if (!prompt.trim()) return;
-    if (!user) return toast.error("Login to send a message");
-    if (isLoading) return toast.error("Please wait for the previous response");
-
-    // Ensure selectedChat is valid before accessing _id
-    if (!selectedChat || !selectedChat._id) {
-      return toast.error("Please select a chat before sending a message");
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setPrompt("");
-
-    const userPrompt = { role: "user", content: prompt, timestamp: Date.now() };
-    updateChatMessages(selectedChat._id, userPrompt);
-
+  const sendPrompt = async (e) => {
+    e.preventDefault();
+    const promptCopy = prompt;
+  
     try {
-      // Make POST request to the Gemini API
-      const { data } = await axios.post(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=GEMINI_API_KEY",
-        {
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!data || !data.contents || data.contents.length === 0) {
-        throw new Error("No response content from Gemini API");
-      }
-
-      const responseContent = data.contents[0].parts[0].text;
-
-      // Simulate typing effect
-      setTypingMessage("Assistant is typing...");
-
-      let i = 0;
-      const interval = setInterval(() => {
-        if (i < responseContent.length) {
-          setTypingMessage(responseContent.slice(0, i + 1));
-          i++;
-        } else {
-          clearInterval(interval);
-          updateChatMessages(selectedChat._id, {
+      if (!user) return toast.error("Login to send a message");
+      if (isLoading) return toast.error("Please wait for the previous response");
+  
+      setIsLoading(true);
+      setPrompt("");
+  
+      const userPrompt = {
+        role: "user",
+        content: prompt,
+        timestamp: Date.now(),
+      };
+  
+      // Ensure selectedChat is defined before attempting to access messages
+      if (selectedChat && selectedChat.messages) {
+        // Update local state (user message)
+        setChats((prevChats) =>
+          prevChats.map((chat) =>
+            chat._id === selectedChat._id
+              ? { ...chat, messages: [...chat.messages, userPrompt] }
+              : chat
+          )
+        );
+        setSelectedChat((prev) => ({
+          ...prev,
+          messages: [...prev.messages, userPrompt],
+        }));
+  
+        // Call API
+        const { data } = await axios.post("/api/chat/ai", {
+          chatId: selectedChat._id,
+          prompt,
+        });
+        console.log(data);
+  
+        if (data.success) {
+          const assistantMessage = {
             role: "assistant",
-            content: responseContent,
+            content: "Assistant is typing...", // Placeholder text
             timestamp: Date.now(),
-          });
-          setTypingMessage("");
+          };
+  
+          // Append assistant message placeholder
+          setChats((prevChats) =>
+            prevChats.map((chat) =>
+              chat._id === selectedChat._id
+                ? { ...chat, messages: [...chat.messages, assistantMessage] }
+                : chat
+            )
+          );
+          setSelectedChat((prev) => ({
+            ...prev,
+            messages: [...prev.messages, assistantMessage],
+          }));
+  
+          // Simulate typing effect
+          const message = data.data.content;
+          let i = 0;
+          const typingInterval = setInterval(() => {
+            if (i < message.length) {
+              setSelectedChat((prev) => {
+                const updatedMessages = [...prev.messages];
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...assistantMessage,
+                  content: message.slice(0, i + 1),
+                };
+                return { ...prev, messages: updatedMessages };
+              });
+              i++;
+            } else {
+              clearInterval(typingInterval);
+            }
+          }, 50);
+        } else {
+          toast.error(data.message);
+          setPrompt(promptCopy);
         }
-      }, 50);
+      } else {
+        console.error("selectedChat or selectedChat.messages is null or undefined");
+        toast.error("Failed to update chat messages.");
+      }
     } catch (error) {
-      setError(error.message);
       toast.error(error.message);
+      setPrompt(promptCopy);
     } finally {
       setIsLoading(false);
     }
   };
+  
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); sendPrompt(); }} className="w-full max-w-2xl bg-[#404045] p-4 rounded-3xl mt-4">
+    <form onSubmit={sendPrompt} className="w-full max-w-2xl bg-[#404045] p-4 rounded-3xl mt-4 transition-all">
       <textarea
-        ref={textareaRef}
         onKeyDown={handleKeyDown}
-        className="outline-none w-full resize-none overflow-hidden bg-transparent text-white"
+        className="outline-none w-full resize-none overflow-hidden break-words bg-transparent text-white"
         rows={2}
-        placeholder="Message Gemini"
+        placeholder="Message DeepSeek"
         required
-        onChange={(e) => { setPrompt(e.target.value); setError(null); }}
+        onChange={(e) => setPrompt(e.target.value)}
         value={prompt}
-        disabled={isLoading}
+        disabled={isLoading} // Disable input while loading
       />
-      {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
-      <div className="flex items-center justify-between mt-2">
-        <button className={`p-2 rounded-full transition ${!prompt.trim() || isLoading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`} disabled={!prompt.trim() || isLoading}>
-          {isLoading ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Image src={assets.arrow_icon} alt="Send" width={16} height={16} />}
-        </button>
+
+      <div className="flex items-center justify-between text-sm mt-2">
+        {/* Left Buttons */}
+        <div className="flex items-center gap-2">
+          <p className="flex items-center gap-2 text-xs border border-gray-300/40 px-2 py-1 rounded-full cursor-pointer hover:bg-gray-500/20 transition">
+            <Image className="h-5 w-5" src={assets.deepthink_icon} alt="DeepThink Icon" width={20} height={20} />
+            DeepThink (R1)
+          </p>
+          <p className="flex items-center gap-2 text-xs border border-gray-300/40 px-2 py-1 rounded-full cursor-pointer hover:bg-gray-500/20 transition">
+            <Image className="h-5 w-5" src={assets.search_icon} alt="Search Icon" width={20} height={20} />
+            Search
+          </p>
+        </div>
+
+        {/* Right Section - Pin & Submit Button */}
+        <div className="flex items-center gap-1">
+          {/* Pin Icon */}
+          <Image className="h-4 w-4 cursor-pointer" src={assets.pin_icon} alt="Pin Icon" width={16} height={16} />
+
+          {/* Submit Button */}
+          <button
+            className={`${
+              prompt && !isLoading ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-500"
+            } rounded-full p-2 cursor-pointer transition`}
+            disabled={!prompt || isLoading}
+          >
+            {isLoading ? (
+              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Image
+                className="h-4 w-4"
+                src={prompt ? assets.arrow_icon : assets.arrow_icon_dull}
+                alt="Send"
+                width={16}
+                height={16}
+              />
+            )}
+          </button>
+        </div>
       </div>
     </form>
   );
