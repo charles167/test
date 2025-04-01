@@ -9,17 +9,15 @@ import Image from "next/image";
 
 export default function Home() {
   const [expand, setExpand] = useState(false);
-  const [messages, setMessages] = useState([]); // Chat messages
+  const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const chatContainerRef = useRef(null);
 
-  // Handle search input change
   const handleSearch = (e) => setSearchTerm(e.target.value);
 
-  // Fetch response from Gemini API
-  const handleSearchSubmit = useCallback(async () => {
-    if (!searchTerm.trim()) return;
+  const handleSearchSubmit = useCallback(async (query) => {
+    if (!query.trim()) return;
     setIsLoading(true);
 
     try {
@@ -28,44 +26,39 @@ export default function Home() {
 
       const response = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        { contents: [{ parts: [{ text: searchTerm }] }] },
+        { contents: [{ parts: [{ text: query }] }] },
         { headers: { "Content-Type": "application/json" } }
       );
 
-      console.log("API Response:", response.data);
-      const generatedText =
-        response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response from AI.";
+      const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response from AI.";
 
       setMessages((prev) => [
         ...prev,
-        { role: "user", content: searchTerm },
+        { role: "user", content: query },
         { role: "assistant", content: generatedText },
       ]);
     } catch (error) {
       console.error("Error fetching data:", error);
+      const errorMessage = error.response?.data?.error?.message || "Something went wrong. Please try again.";
       setMessages((prev) => [
         ...prev,
-        { role: "user", content: searchTerm },
-        { role: "assistant", content: "❌ Error: Failed to fetch AI response." },
+        { role: "user", content: query },
+        { role: "assistant", content: `❌ ${errorMessage}` },
       ]);
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm]);
+  }, []);
 
-  // Auto-scroll chat when messages update
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.lastElementChild?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
   return (
     <div className="flex h-screen">
-      {/* Sidebar */}
-      <Sidebar expand={expand} setExpand={setExpand} />
-
-      {/* Main Chat Area */}
+      
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8 bg-[#292a2d] text-white relative">
         <div className="md:hidden absolute px-4 top-6 flex items-center justify-between w-full">
           <Image
@@ -84,8 +77,6 @@ export default function Home() {
             height={30}
           />
         </div>
-
-        {/* Search Input */}
         <div className="w-full max-w-2xl mt-4">
           <input
             type="text"
@@ -93,18 +84,21 @@ export default function Home() {
             placeholder="Ask something..."
             value={searchTerm}
             onChange={handleSearch}
-            onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !isLoading) {
+                handleSearchSubmit(searchTerm);
+              }
+            }}
+            disabled={isLoading}
           />
           <button
-            onClick={handleSearchSubmit}
+            onClick={() => handleSearchSubmit(searchTerm)}
             className="mt-2 px-4 py-2 bg-[#4CAF50] text-white rounded-lg"
             disabled={isLoading}
           >
             {isLoading ? "Searching..." : "Search"}
           </button>
         </div>
-
-        {/* Chat Messages */}
         <div ref={chatContainerRef} className="w-full max-w-2xl space-y-4 overflow-y-auto mt-4 h-[60vh]">
           {messages.length > 0 ? (
             messages.map((msg, index) => <Message key={index} role={msg.role} content={msg.content} />)
@@ -118,8 +112,6 @@ export default function Home() {
             </div>
           )}
         </div>
-
-        {/* Prompt Input Box */}
         <PromptBox isLoading={isLoading} setIsLoading={setIsLoading} />
         <p className="text-xs absolute bottom-1 text-gray-500">⚡ AI-generated responses may not be 100% accurate.</p>
       </div>

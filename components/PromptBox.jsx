@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { assets } from "@/assets/assets";
@@ -42,6 +43,11 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
     if (!user) return toast.error("Login to send a message");
     if (isLoading) return toast.error("Please wait for the previous response");
 
+    // Ensure selectedChat is valid before accessing _id
+    if (!selectedChat || !selectedChat._id) {
+      return toast.error("Please select a chat before sending a message");
+    }
+
     setIsLoading(true);
     setError(null);
     setPrompt("");
@@ -50,18 +56,44 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
     updateChatMessages(selectedChat._id, userPrompt);
 
     try {
-      const { data } = await axios.post("/api/chat/ai", { chatId: selectedChat._id, prompt });
-      if (!data.success) throw new Error(data.message || "An error occurred");
+      // Make POST request to the Gemini API
+      const { data } = await axios.post(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=GEMINI_API_KEY",
+        {
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
+      if (!data || !data.contents || data.contents.length === 0) {
+        throw new Error("No response content from Gemini API");
+      }
+
+      const responseContent = data.contents[0].parts[0].text;
+
+      // Simulate typing effect
       setTypingMessage("Assistant is typing...");
+
       let i = 0;
       const interval = setInterval(() => {
-        if (i < data.data.content.length) {
-          setTypingMessage(data.data.content.slice(0, i + 1));
+        if (i < responseContent.length) {
+          setTypingMessage(responseContent.slice(0, i + 1));
           i++;
         } else {
           clearInterval(interval);
-          updateChatMessages(selectedChat._id, { role: "assistant", content: data.data.content, timestamp: Date.now() });
+          updateChatMessages(selectedChat._id, {
+            role: "assistant",
+            content: responseContent,
+            timestamp: Date.now(),
+          });
           setTypingMessage("");
         }
       }, 50);
