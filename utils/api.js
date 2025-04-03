@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export const fetchChats = async () => {
   try {
-    const res = await fetch('/api/chat/get');
+    const res = await fetch('');
     const data = await res.json();
     return data;
   } catch (error) {

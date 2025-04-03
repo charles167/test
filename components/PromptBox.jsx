@@ -116,7 +116,7 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
         onKeyDown={handleKeyDown}
         className="outline-none w-full resize-none overflow-hidden break-words bg-transparent text-white"
         rows={2}
-        placeholder="Message DeepSeek"
+        placeholder="Message ABLANYA TECH"
         required
         onChange={(e) => setPrompt(e.target.value)}
         value={prompt}
