@@ -19,96 +19,93 @@ const PromptBox = ({ setIsLoading, isLoading }) => {
   const sendPrompt = async (e) => {
     e.preventDefault();
     const promptCopy = prompt;
-  
+
     try {
       if (!user) return toast.error("Login to send a message");
+      if (!selectedChat) return toast.error("No chat selected. Please start a new chat.");
+      if (!selectedChat.messages) {
+        setSelectedChat((prev) => ({ ...prev, messages: [] })); // Ensure messages array exists
+      }
       if (isLoading) return toast.error("Please wait for the previous response");
-  
+
       setIsLoading(true);
       setPrompt("");
-  
+
       const userPrompt = {
         role: "user",
         content: prompt,
         timestamp: Date.now(),
       };
-  
-      // Ensure selectedChat is defined before attempting to access messages
-      if (selectedChat && selectedChat.messages) {
-        // Update local state (user message)
+
+      // Update local state with user's message
+      setChats((prevChats) =>
+        prevChats.map((chat) =>
+          chat._id === selectedChat._id
+            ? { ...chat, messages: [...(chat.messages || []), userPrompt] }
+            : chat
+        )
+      );
+      setSelectedChat((prev) => ({
+        ...prev,
+        messages: [...(prev?.messages || []), userPrompt],
+      }));
+
+      // Send request to API
+      const { data } = await axios.post("/api/chat/ai", {
+        chatId: selectedChat._id,
+        prompt,
+      });
+
+      if (data.success) {
+        const assistantMessage = {
+          role: "assistant",
+          content: "Assistant is typing...",
+          timestamp: Date.now(),
+        };
+
+        // Append assistant's placeholder message
         setChats((prevChats) =>
           prevChats.map((chat) =>
             chat._id === selectedChat._id
-              ? { ...chat, messages: [...chat.messages, userPrompt] }
+              ? { ...chat, messages: [...chat.messages, assistantMessage] }
               : chat
           )
         );
         setSelectedChat((prev) => ({
           ...prev,
-          messages: [...prev.messages, userPrompt],
+          messages: [...prev.messages, assistantMessage],
         }));
-  
-        // Call API
-        const { data } = await axios.post("/api/chat/ai", {
-          chatId: selectedChat._id,
-          prompt,
-        });
-        console.log(data);
-  
-        if (data.success) {
-          const assistantMessage = {
-            role: "assistant",
-            content: "Assistant is typing...", // Placeholder text
-            timestamp: Date.now(),
-          };
-  
-          // Append assistant message placeholder
-          setChats((prevChats) =>
-            prevChats.map((chat) =>
-              chat._id === selectedChat._id
-                ? { ...chat, messages: [...chat.messages, assistantMessage] }
-                : chat
-            )
-          );
-          setSelectedChat((prev) => ({
-            ...prev,
-            messages: [...prev.messages, assistantMessage],
-          }));
-  
-          // Simulate typing effect
-          const message = data.data.content;
-          let i = 0;
-          const typingInterval = setInterval(() => {
-            if (i < message.length) {
-              setSelectedChat((prev) => {
-                const updatedMessages = [...prev.messages];
-                updatedMessages[updatedMessages.length - 1] = {
-                  ...assistantMessage,
-                  content: message.slice(0, i + 1),
-                };
-                return { ...prev, messages: updatedMessages };
-              });
-              i++;
-            } else {
-              clearInterval(typingInterval);
-            }
-          }, 50);
-        } else {
-          toast.error(data.message);
-          setPrompt(promptCopy);
-        }
+
+        // Simulate typing effect
+        const message = data.data.content;
+        let i = 0;
+        const typingInterval = setInterval(() => {
+          if (i < message.length) {
+            setSelectedChat((prev) => {
+              const updatedMessages = [...prev.messages];
+              updatedMessages[updatedMessages.length - 1] = {
+                ...assistantMessage,
+                content: message.slice(0, i + 1),
+              };
+              return { ...prev, messages: updatedMessages };
+            });
+            i++;
+          } else {
+            clearInterval(typingInterval);
+          }
+        }, 50);
       } else {
-        console.error("selectedChat or selectedChat.messages is null or undefined");
-        toast.error("Failed to update chat messages.");
+        toast.error(data.message);
+        setPrompt(promptCopy);
       }
     } catch (error) {
-      toast.error(error.message);
+      console.error("🚨 Error in sendPrompt:", error);
+      toast.error("Failed to send message.");
       setPrompt(promptCopy);
     } finally {
       setIsLoading(false);
     }
   };
-  
 
   return (
     <form onSubmit={sendPrompt} className="w-full max-w-2xl bg-[#404045] p-4 rounded-3xl mt-4 transition-all">

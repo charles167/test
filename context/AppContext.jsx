@@ -1,18 +1,13 @@
 "use client";
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-// Create context
 const AppContext = createContext(null);
 
-// Custom hook to use the AppContext
-export const useAppContext = () => {
-  return useContext(AppContext);
-};
+export const useAppContext = () => useContext(AppContext);
 
-// Provider component
 export const AppContextProvider = ({ children }) => {
   const { user } = useUser();
   const { getToken } = useAuth();
@@ -20,66 +15,41 @@ export const AppContextProvider = ({ children }) => {
   const [chats, setChats] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [authToken, setAuthToken] = useState(null); // Cache token state
+  const [authToken, setAuthToken] = useState(null);
 
+  // Fetch token only if not already set
   const fetchAuthToken = useCallback(async () => {
-    try {
-      const token = await getToken({ template: "charles" });
-      setAuthToken(token); // Set token state
-    } catch (error) {
-      console.error("🚨 Error fetching token:", error);
-      toast.error("Failed to fetch authentication token.");
-    }
-  }, [getToken]);
-
-  // Fetch auth token on first load or when user changes
-  useEffect(() => {
-    if (user && !authToken) {
-      fetchAuthToken();
-    }
-  }, [user, authToken, fetchAuthToken]);
-
-  const createNewChat = async () => {
-    try {
-      if (!user || !authToken) return;
-
-      setLoading(true);
-
-      const { data } = await axios.post("/api/chat/create", {}, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
-
-      if (data.success) {
-        await fetchUserChats(); // Ensure state updates immediately
-      } else {
-        toast.error(data.message);
+    if (!authToken) {
+      try {
+        const token = await getToken({ template: "charles" });
+        setAuthToken(token);
+      } catch (error) {
+        console.error("🚨 Error fetching token:", error);
+        toast.error("Failed to fetch authentication token.");
       }
-    } catch (error) {
-      console.error("🚨 Error creating chat:", error);
-      toast.error("Failed to create chat.");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [getToken, authToken]);
+
+  useEffect(() => {
+    if (user) {
+      fetchAuthToken();  // Fetch token when the user is available
+    }
+  }, [user, fetchAuthToken]);
 
   const fetchUserChats = useCallback(async () => {
+    if (!authToken || loading) return;
+
+    setLoading(true);
+
     try {
-      if (!user || !authToken) return;
-
-      setLoading(true);
-
-      const { data } = await axios.get("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=GEMINI_API_KEY", {
+      const { data } = await axios.get("/api/chat/get", {
         headers: { Authorization: `Bearer ${authToken}` },
       });
 
       if (data.success) {
         console.log("✅ User Chats:", data.chats);
         setChats(data.chats);
-
-        if (data.chats.length === 0) {
-          await createNewChat();
-        } else {
-          data.chats.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        if (data.chats.length > 0) {
           setSelectedChat(data.chats[0]);
           console.log("🔵 Selected Chat:", data.chats[0]);
         }
@@ -92,16 +62,18 @@ export const AppContextProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [user, authToken, createNewChat]);
+  }, [authToken, loading]);
 
   useEffect(() => {
     if (user && authToken) {
-      fetchUserChats();
+      fetchUserChats(); // Fetch chats once user and token are available
     }
   }, [user, authToken, fetchUserChats]);
 
   return (
-    <AppContext.Provider value={{ user, chats, setChats, selectedChat, setSelectedChat, fetchUserChats, createNewChat, loading }}>
+    <AppContext.Provider
+      value={{ user, chats, setChats, selectedChat, setSelectedChat, fetchUserChats, loading }}
+    >
       {children}
     </AppContext.Provider>
   );

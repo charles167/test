@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { assets } from "@/assets/assets";
 import Message from "@/components/Message";
-import PromptBox from "@/components/PromptBox";
+import PromptBox from "@/components/PromptBox"; // Correct import
 import Sidebar from "@/components/Sidebar";
 import Image from "next/image";
 
